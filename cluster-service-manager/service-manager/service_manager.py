@@ -72,6 +72,22 @@ def task_update():
 
 # TODO: job migration
 
+
+@app.route('/api/gw/register', methods=['POST'])
+def register_gateway():
+    """
+        Registers a new gateway component to the cluster network
+        receives {
+            "gw_name": gw_name,
+            "public_gw_ip": public_gw_ip,
+        }
+    """
+    app.logger.info('Incoming Request /api/gw/register')
+    req_json = request.json
+    app.logger.debug(req_json)
+    # TODO registration function
+
+
 if __name__ == '__main__':
     import eventlet
 

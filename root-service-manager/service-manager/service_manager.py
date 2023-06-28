@@ -5,6 +5,7 @@ from network.tablequery import *
 from network import subnetwork_management, routes_interests
 from operations import instances_management, cluster_management
 from operations import service_management
+from operations import gateway_management
 from net_logging import configure_logging
 import os
 import socket
@@ -192,6 +193,33 @@ def subnet_request():
     addr = subnetwork_management.new_subnetwork_addr()
     addrv6 = subnetwork_management.new_subnetwork_addr_v6()
     return {'subnet_addr': addr, 'subnet_addr_v6': addrv6}
+
+
+# ......... Gateway management endpoints ...............#
+# ......................................................#
+
+@app.route('/api/gw/register', methods=['POST'])
+def register_gateway():
+    """
+        Registers a new gateway component to the root network
+        receives {
+            "gw_name": gw_name,
+            "public_gw_ip": public_gw_ip,
+        }
+        returns {
+            "gw_id": gw_id, 
+            "oakestra_gw_ip": oakestra_gw_ip,
+        }
+    """
+    app.logger.info('Incoming Request /api/gw/register')
+    req_json = request.json
+    app.logger.debug(req_json)
+    gw_name = req_json['gw_name']
+    public_gw_ip = req_json['public_gw_ip']
+
+    gw_id, public_gw_ip = gateway_management.gateway_registration(gw_name, public_gw_ip)
+    return {'gw_id'}
+    # TODO registration function
 
 
 if __name__ == '__main__':

@@ -9,10 +9,14 @@ MONGO_PORT = os.environ.get('CLOUD_MONGO_PORT')
 MONGO_ADDR_JOBS = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/jobs'
 MONGO_ADDR_NET = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/netcache'
 MONGO_ADDR_CLUSTER = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/cluster'
+MONGO_ADDR_GATEWAYS = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/gateways'
+MONGO_ADDR_GATEWAY_NET = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/gateway_netcache'
 
 mongo_jobs = None
 mongo_clusters = None
 mongo_net = None
+mongo_gateways = None
+mongo_gw_net = None
 
 app = None
 
@@ -21,7 +25,8 @@ CLUSTERS_FRESHNESS_INTERVAL = 45
 
 def mongo_init(flask_app):
     global app
-    global mongo_jobs, mongo_net, mongo_clusters
+    global mongo_jobs, mongo_net, mongo_clusters, mongo_gateways, mongo_gw_net
+
 
     app = flask_app
 
@@ -32,6 +37,8 @@ def mongo_init(flask_app):
         mongo_jobs = PyMongo(app, uri=MONGO_ADDR_JOBS)
         mongo_net = PyMongo(app, uri=MONGO_ADDR_NET)
         mongo_clusters = PyMongo(app, uri=MONGO_ADDR_CLUSTER)
+        mongo_gateways = PyMongo(app, uri=MONGO_ADDR_GATEWAYS)
+        mongo_gw_net = PyMongo(app, uri=MONGO_ADDR_GATEWAY_NET)
     except Exception as e:
         app.logger.fatal(e)
     app.logger.info("MONGODB - init mongo")
@@ -661,3 +668,27 @@ def mongo_remove_cluster_job_interest(cluster_id, job_name):
                     "interests": interests
                 }}
     )
+
+
+# .......... GATEWAY NETWORK OPERATIONS ..........#
+###################################################
+
+def mongo_get_gateway_ip():
+    global mongo_gw_net
+    mongo_gw_net = mongo_gw_net.db.gateway_net
+    return 
+
+
+# .......... GATEWAY OPERATIONS ..........#
+###########################################
+
+def mongo_gateway_add(gw_name):
+    global mongo_gateways
+    mongo_gw = mongo_gateways.db.gateways
+    if gw_name is None:
+        return
+    if mongo_gw.find_one({"gw_name": gw_name}) is not None:
+        return None
+    mongo_gw.insert_one({
+        "gw_name": gw_name,
+    })
