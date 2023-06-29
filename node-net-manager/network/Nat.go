@@ -27,6 +27,8 @@ var ip6table = NewOakestraIPTable(iptables.ProtocolIPv6)
 func IptableFlushAll() {
 	_ = iptable.DeleteChain("nat", chain)
 	_ = iptable.Delete("nat", "PREROUTING", "-j", chain)
+	_ = ip6table.DeleteChain("nat", chain)
+	_ = ip6table.Delete("nat", "PREROUTING", "-j", chain)
 }
 
 func DisableReversePathFiltering(bridgeName string) {
