@@ -64,7 +64,7 @@ def mqtt_init(flask_app):
     mqtt.on_message = handle_mqtt_message
     mqtt.reconnect_delay_set(min_delay=1, max_delay=120)
     mqtt.max_queued_messages_set(1000)
-    mqtt.connect(os.environ.get('MQTT_BROKER_URL'), int(os.environ.get('MQTT_BROKER_PORT')), keepalive=5)
+    mqtt.connect(os.environ.get('MQTT_BROKER_URL').replace('[', '').replace(']', ''), int(os.environ.get('MQTT_BROKER_PORT')), keepalive=5)
     mqtt.loop_start()
 
 
