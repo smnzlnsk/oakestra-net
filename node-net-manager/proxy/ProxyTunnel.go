@@ -488,8 +488,8 @@ func (proxy *GoProxyTunnel) GetFinishCh() <-chan bool {
 }
 
 func decodePacket(msg []byte) (iputils.NetworkLayerPacket, iputils.TransportLayerProtocol) {
-	// version == true means packet contains IPv4 Header
-	// version == false means packet contains IPv6 Header
+	// version == true -> IPv4 Header
+	// version == false -> IPv6 Header
 	var ipType layers.IPProtocol
 	if msg[0]&0xf0 == 0x40 {
 		ipType = layers.IPProtocolIPv4

@@ -151,7 +151,6 @@ func (proxy *GoProxyTunnel) createTun() {
 
 	logger.InfoLogger().Println("Bringing tun up with addr " + proxy.tunNetIP + "/12")
 	cmd := exec.Command("ip", "addr", "add", proxy.tunNetIP+"/12", "dev", ifce.Name())
-	logger.InfoLogger().Println()
 	err = cmd.Run()
 	if err != nil {
 		log.Fatal(err)
