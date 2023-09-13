@@ -19,14 +19,15 @@ def notify_deployment(cluster_addr, cluster_port, job_name, instancenum):
     return _notify_interest_update(cluster_addr, cluster_port, job_name, instancenum, "DEPLOYMENT")
 
 
-def _notify_interest_update(cluster_addr, cluster_port, job_name, instancenum, type):
+# renamed parameter 'type' to 'ttype' to not shadow the builtin type function
+def _notify_interest_update(cluster_addr, cluster_port, job_name, instancenum, ttype):
     addr = '[{}]'.format(cluster_addr) if type(ip_address(cluster_addr)) is IPv6Address else cluster_addr
     return request_with_retry(
         url="http://" + addr + ":" + str(cluster_port) + NOTIFY_INTEREST_ENDPOINT,
         json={
             "job_name": job_name,
             "instance_number": instancenum,
-            "type": type
+            "type": ttype
         })
 
 
