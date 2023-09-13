@@ -5,7 +5,8 @@ from network.tablequery import *
 from network import subnetwork_management, routes_interests
 from operations import instances_management, cluster_management
 from operations import service_management
-from operations import gateway_management
+from operations import gateway_management as operations_gateway_management
+from network import gateway_management as network_gateway_management
 from net_logging import configure_logging
 import os
 import socket
@@ -198,28 +199,49 @@ def subnet_request():
 # ......... Gateway management endpoints ...............#
 # ......................................................#
 
-@app.route('/api/gw/register', methods=['POST'])
+@app.route('/api/gateway/deploy', methods=['POST'])
 def register_gateway():
     """
         Registers a new gateway component to the root network
-        receives {
-            "gw_name": gw_name,
-            "public_gw_ip": public_gw_ip,
-        }
-        returns {
-            "gw_id": gw_id, 
-            "oakestra_gw_ip": oakestra_gw_ip,
+        receives:
+        {
+            "node_ip": node_ip,
+            "cluster_id": cluster_id,
+            "microservices": microservices,
         }
     """
-    app.logger.info('Incoming Request /api/gw/register')
+
+    app.logger.info('Incoming Request /api/gateway/deploy')
     req_json = request.json
     app.logger.debug(req_json)
-    gw_name = req_json['gw_name']
-    public_gw_ip = req_json['public_gw_ip']
 
-    gw_id, public_gw_ip = gateway_management.gateway_registration(gw_name, public_gw_ip)
-    return {'gw_id'}
-    # TODO registration function
+    node_ip = req_json['node_ip']
+    cluster_id = req_json['cluster_id']
+    microservices = req_json['microservices']
+
+    return operations_gateway_management.deploy_gateway_function(
+        node_ip = node_ip,
+        cluster_id = cluster_id,
+        microservices = microservices
+    )
+    
+# ......... Gateway network management endpoints ...............#
+# ..............................................................#
+
+# TODO implement simple auth
+@app.route('/api/gateway/<gateway_id>/ip', methods=['GET'])
+def gateway_ip_request(gateway_id = 0):
+    """
+    Returns a new oakestra internal IP for a registered gateway
+    """
+    if not mongodb_requests.mongo_is_gateway_registered(gateway_id):
+        return {}
+    
+    ipv4 = network_gateway_management.new_gateway_internal_ipv4()
+    ipv6 = network_gateway_management.new_gateway_internal_ipv6()
+    return {'oakestra_gateway_ipv4': ipv4, 'oakestra_gateway_ipv6': ipv6}
+
+
 
 
 if __name__ == '__main__':

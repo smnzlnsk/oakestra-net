@@ -3,11 +3,12 @@ package mqtt
 import (
 	"NetManager/logger"
 	"fmt"
-	"github.com/eclipse/paho.mqtt.golang"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
 
 var initMqttClient sync.Once
@@ -75,10 +76,16 @@ func InitNetMqttClient(clientid string, brokerurl string, brokerport string) *Ne
 			log.Printf("Connect lost: %v", err)
 		}
 
-		netMqttClient.topics[fmt.Sprintf("nodes/%s/net/tablequery/result", netMqttClient.clientID)] =
-			netMqttClient.tableQueryRequestCache.TablequeryResultMqttHandler
-		netMqttClient.topics[fmt.Sprintf("nodes/%s/net/subnetwork/result", netMqttClient.clientID)] =
-			subnetworkAssignmentMqttHandler
+		// TODO: Move subscription to node registration
+		//netMqttClient.topics[fmt.Sprintf("nodes/%s/net/tablequery/result", netMqttClient.clientID)] =
+		//	netMqttClient.tableQueryRequestCache.TablequeryResultMqttHandler
+		//netMqttClient.topics[fmt.Sprintf("nodes/%s/net/subnetwork/result", netMqttClient.clientID)] =
+		//	subnetworkAssignmentMqttHandler
+
+		netMqttClient.topics[fmt.Sprintf("nodes/%s/net/gateway/deploy", netMqttClient.clientID)] =
+			GatewayDeploymentHandler
+
+		log.Printf("Subscribed to %s", fmt.Sprintf("nodes/%s/net/gateway/deploy", netMqttClient.clientID))
 
 		opts := mqtt.NewClientOptions()
 		opts.AddBroker(fmt.Sprintf("tcp://%s:%s", netMqttClient.brokerUrl, netMqttClient.brokerPort))
@@ -91,11 +98,25 @@ func InitNetMqttClient(clientid string, brokerurl string, brokerport string) *Ne
 
 		netMqttClient.runMqttClient(opts)
 	})
+	log.Println(netMqttClient.topics)
 	return &netMqttClient
 }
 
 func GetNetMqttClient() *NetMqttClient {
 	return &netMqttClient
+}
+
+func (netmqtt *NetMqttClient) RegisterWorker(workerID string) {
+	// deregister from gateway deployment topic, since workers cannot function as gateways
+	netmqtt.DeRegisterTopic(fmt.Sprintf("nodes/%s/net/gateway/deploy", netmqtt.clientID))
+	// replace old netmanagerID with workerID
+	netmqtt.clientID = workerID
+	// subscribe to worker specific topics
+	netmqtt.RegisterTopic(fmt.Sprintf("nodes/%s/net/tablequery/result", netmqtt.clientID),
+		netmqtt.tableQueryRequestCache.TablequeryResultMqttHandler)
+	netmqtt.RegisterTopic(fmt.Sprintf("nodes/%s/net/subnetwork/result", netmqtt.clientID),
+		subnetworkAssignmentMqttHandler)
+	log.Println(netmqtt.topics)
 }
 
 func (netmqtt *NetMqttClient) runMqttClient(opts *mqtt.ClientOptions) {

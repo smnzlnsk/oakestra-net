@@ -1,6 +1,6 @@
 import re
 
-from interfaces.mongodb_requests import mongo_find_node_by_id_and_update_subnetwork
+from interfaces.mongodb_requests import mongo_find_node_by_id_and_update_subnetwork, mongo_find_gateway_by_id_and_update_internal_ips
 from network.deployment import *
 from network.tablequery import resolution, interests
 import paho.mqtt.client as paho_mqtt
@@ -127,6 +127,16 @@ def _subnet_handler(client_id, payload):
         # remove subnetwork from node
         pass
 
+
+def _gateway_ip_handler(gateway_id, payload):
+    method = payload.get('METHOD')
+    if method == 'GET':
+        # fetch new Internal Gateway IP for gateway
+        # ip_arr has structure: {'oakestra_gateway_ipv4': ipv4, 'oakestra_gateway_ipv6': ipv6}
+        ip_arr = root_service_manager_get_gateway_ip(gateway_id)
+        mongo_find_gateway_by_id_and_update_internal_ips(gateway_id=gateway_id, internal_ipv4=ip_arr[0], internal_ipv6=ip_arr[1])
+        # TODO MQTT publishing
+    
 
 def mqtt_publish_tablequery_result(client_id, result):
     topic = 'nodes/' + client_id + '/net/tablequery/result'

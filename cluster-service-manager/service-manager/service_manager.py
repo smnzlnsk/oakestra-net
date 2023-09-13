@@ -73,19 +73,32 @@ def task_update():
 # TODO: job migration
 
 
-@app.route('/api/gw/register', methods=['POST'])
+@app.route('/api/gateway/register', methods=['POST'])
 def register_gateway():
     """
-        Registers a new gateway component to the cluster network
-        receives {
-            "gw_name": gw_name,
-            "public_gw_ip": public_gw_ip,
+        Registers a new gateway component to the root network
+        receives:
+        {
+            "gateway_id": gateway_id,
+            "gateway_ipv4": gateway_ipv4,
+            "gateway_ipv6": gateway_ipv6,
         }
     """
-    app.logger.info('Incoming Request /api/gw/register')
+
+    app.logger.info('Incoming Request /api/gateway/register')
     req_json = request.json
     app.logger.debug(req_json)
-    # TODO registration function
+
+    gateway_id = req_json['gateway_id']
+    gateway_ipv4 = req_json['gateway_ipv4']
+    gateway_ipv6 = req_json['gateway_ipv6']
+    """
+    return operations_gateway_management.gateway_registration(
+        gateway_id = gateway_id,
+        gateway_ipv4 = gateway_ipv4,
+        gateway_ipv6 = gateway_ipv6
+    )
+    """
 
 
 if __name__ == '__main__':

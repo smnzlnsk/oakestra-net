@@ -8,6 +8,8 @@ import (
 	"net"
 	"time"
 
+	"NetManager/logger"
+
 	"tailscale.com/net/interfaces"
 )
 
@@ -29,7 +31,8 @@ func GetLocalIPandIface() (string, string) {
 		if err != nil {
 			panic(err)
 		}
-		for _, address := range addrs {
+		for idx, address := range addrs {
+			logger.InfoLogger().Printf("idx: %d IP: %s", idx, address.String())
 			// check the address type and if it is not a loopback the display it
 			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && iface.Name == defaultIfce {
 				// TODO DISCUSS: Should we first check for IPv6 on the interface first and fallback to v4?

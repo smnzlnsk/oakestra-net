@@ -594,7 +594,7 @@ def mongo_free_subnet_address_to_cache_v6(address):
         'ipv6': address
     })
 
-# ......... CLUSTER OPERATIONS ....................#
+# ......... CLUSTER OPERATIONS ................... #
 ####################################################
 
 def mongo_cluster_add(cluster_id, cluster_port, cluster_address, status):
@@ -670,25 +670,216 @@ def mongo_remove_cluster_job_interest(cluster_id, job_name):
     )
 
 
-# .......... GATEWAY NETWORK OPERATIONS ..........#
+# .......... GATEWAY NETWORK OPERATIONS .........#
 ###################################################
 
-def mongo_get_gateway_ip():
+# ....... IPv4 ....... #
+########################
+
+def mongo_get_gateway_ip_from_cache():
+    """
+    Pop an available Internal Gateway IPv4 address, if any, from the free addresses cache
+    @return: int[4] in the shape [10, 252, a, b]
+             equal to 10.252.0.0/16"""
     global mongo_gw_net
-    mongo_gw_net = mongo_gw_net.db.gateway_net
-    return 
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    entry = mongo_gw_netcache.find_one({'type': 'free_gateway_ipv4'})
+
+    if entry is not None:
+        mongo_gw_netcache.delete_one({"_id": entry["_id"]})
+        return entry["ipv4"]
+    else:
+        return None
+
+def mongo_free_gateway_ip_to_cache(address):
+    """
+    Add back a Internal Gateway IPv4 address to the cache
+    @param address: int[4] in the shape [10, 252, a, b]
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    assert len(address) == 4
+    for n in address:
+        assert 0 <= n < 256
+    
+    assert address[0] == 10
+    assert address[1] == 252
+
+    mongo_gw_netcache.insert_one({
+        'type': 'free_gateway_ipv4',
+        'ipv4': address
+    })
 
 
-# .......... GATEWAY OPERATIONS ..........#
+def mongo_get_next_gateway_ip():
+    """
+    Returns the next available IPv4 address from the Internal Gateway addressing space 10.252.0.0/16
+    @return: int[4] in the shape [10, 252, a, b]
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    next_addr = mongo_gw_netcache.find_one({'type': 'next_gateway_ipv4'})
+
+    if next_addr is not None:
+        return next_addr["ipv4"]
+    else:
+        ipv4arr = [10, 252, 0, 0]
+        mongo_gw_netcache.insert_one({
+            'type': 'next_gateway_ipv4',
+            'ipv4': ipv4arr
+        })
+        return ipv4arr
+
+
+def mongo_update_next_gateway_ip(address):
+    """
+    Update the value for the next Internal Gateway IP available
+    @param address: int[4] in the form [10, 252, a, b]
+        monotonically increasing with respect to the previous address
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    # sanity check for the address
+    assert len(address) == 4
+    for n in address:
+        assert 0 <= n < 256
+
+    assert address[0] == 10
+    assert address[1] == 252
+
+    mongo_gw_netcache.update_one({'type': 'next_gateway_ipv4'}, {'$set': {'ipv4': address}})
+
+
+# ....... IPv6 ....... #
+########################
+
+def mongo_get_gateway_ip_from_cache_v6():
+    """
+    Pop an available Internal Gateway IPv6 address, if any, from the free addresses cache
+    @return: int[16] in the shape [253, 254, 255, 255, 255, 255, 255, 255, 255, 255, a, b, c, d, e, f]
+             equal to [fdfe:ffff:ffff:ffff:ffff::]"""
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    entry = mongo_gw_netcache.find_one({'type': 'free_gateway_ipv6'})
+
+    if entry is not None:
+        mongo_gw_netcache.delete_one({"_id": entry["_id"]})
+        return entry["ipv6"]
+    else:
+        return None
+
+def mongo_free_gateway_ip_to_cache_v6(address):
+    """
+    Add back a Internal Gateway IPv6 address to the cache
+    @param address: int[16] in the shape [253, 254, 255, 255, 255, 255, 255, 255, 255, 255, a, b, c, d, e, f]
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    assert len(address) == 16
+    for n in address:
+        assert 0 <= n < 256
+    
+    assert address[0] == 253
+    assert address[1] == 254
+    for n in range(2, 10):
+        assert address[n] == 255
+    
+
+    mongo_gw_netcache.insert_one({
+        'type': 'free_gateway_ipv6',
+        'ipv6': address
+    })
+
+
+def mongo_get_next_gateway_ip_v6():
+    """
+    Returns the next available ip address from the Internal Gateway addressing space [fdfe:ffff:ffff:ffff:ffff::]/80
+    @return: int[16] in the shape [253, 254, 255, 255, 255, 255, 255, 255, 255, 255, a, b, c, d, e, f]
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    next_addr = mongo_gw_netcache.find_one({'type': 'next_gateway_ipv6'})
+
+    if next_addr is not None:
+        return next_addr["ipv6"]
+    else:
+        ipv6arr = [253, 254, 255, 255, 255, 255, 255, 255, 255, 255, 0, 0, 0, 0, 0, 0]
+        mongo_gw_netcache.insert_one({
+            'type': 'next_gateway_ipv6',
+            'ipv6': ipv6arr
+        })
+        return ipv6arr
+
+
+def mongo_update_next_gateway_ip_v6(address):
+    """
+    Update the value for the next Internal Gateway IP available
+    @param address: int[16] in the form [253, 254, 255, 255, 255, 255, 255, 255, 255, 255, a, b, c, d, e, f]
+        monotonically increasing with respect to the previous address
+    """
+    global mongo_gw_net
+    mongo_gw_netcache = mongo_gw_net.db.gateway_netcache
+
+    # sanity check for the address
+    assert len(address) == 16
+    for n in address:
+        assert 0 <= n < 256
+
+    assert address[0] == 253
+    assert address[1] == 254
+    for n in address[2:10]:
+        assert n == 255
+
+    mongo_gw_netcache.update_one({'type': 'next_gateway_ipv6'}, {'$set': {'ipv6': address}})
+
+# .......... GATEWAY OPERATIONS ......... #
 ###########################################
 
-def mongo_gateway_add(gw_name):
+def mongo_gateway_add(gateway_name, gateway_ipv4, gateway_ipv6):
     global mongo_gateways
     mongo_gw = mongo_gateways.db.gateways
-    if gw_name is None:
-        return
-    if mongo_gw.find_one({"gw_name": gw_name}) is not None:
+
+    # do not allow duplicate gateway names
+    if mongo_gw.find_one({"gateway_name": gateway_name}) is not None:
         return None
-    mongo_gw.insert_one({
-        "gw_name": gw_name,
-    })
+    
+    # gateway_ip values that are None will be stored as null in db
+    gateway = mongo_gw.find_one_and_update(
+        {"gateway_name": gateway_name},
+        {'$set':
+            {
+                "gateway_name": gateway_name,
+                "gateway_ipv4": gateway_ipv4,
+                "gateway_ipv6": gateway_ipv6
+            }
+        }, upsert=True, return_document=True).get('_id')
+    
+    app.logger.info("MONGODB - gateway {} - {} added".format(gateway_name, str(gateway)))
+    return str(gateway)
+
+
+def mongo_is_gateway_registered(gateway_id):
+    global mongo_gateways
+    mongo_gw = mongo_gateways.db.gateways
+    # check if gateway_id is already registered
+    return mongo_gw.count_documents({'_id': ObjectId(gateway_id)}, limit = 1) != 0
+
+
+def mongo_find_gateway_by_id_and_update_internal_ips(gateway_id, internal_ipv4, internal_ipv6):
+    global mongo_gateways
+    mongo_gw = mongo_gateways.db.gateways
+    
+    mongo_gw.find_one_and_update(
+        {'_id': ObjectId(gateway_id)},
+        {'$set': {
+            'internal_ipv4': internal_ipv4,
+            'internal_ipv6': internal_ipv6
+            }},
+        upsert=True)

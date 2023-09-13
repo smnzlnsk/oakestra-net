@@ -23,6 +23,20 @@ def root_service_manager_get_subnet():
         print('Calling System Manager /api/net/subnet not successful.')
 
 
+def root_service_manager_get_gateway_ip(gateway_id):
+    print('Asking the System Manager for a Gateway IP for ' + str(gateway_id))
+    try:
+        response = requests.get(ROOT_SERVICE_MANAGER_ADDR_v6 + '/api/gateway/' + str(gateway_id) + '/ip')
+        ipv4 = json.loads(response.text).get('oakestra_gateway_ipv4')
+        ipv6 = json.loads(response.text).get('oakestra_gateway_ipv6')
+        if len(ipv4) > 0 and len(ipv6) > 0:
+            return [ipv4, ipv6]
+        else:
+            raise requests.exceptions.RequestException('No gateway address found')
+    except requests.exceptions.RequestException as e:
+        print('Calling System Manager /api/gateway/' + str(gateway_id) + '/subnet not successful.')
+
+
 def system_manager_notify_deployment_status(job, worker_id):
     print('Sending deployment status information to System Manager.')
     data = {

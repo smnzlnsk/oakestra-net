@@ -52,6 +52,7 @@ func handleRequests(port int) {
 var Env env.Environment
 var Proxy proxy.GoProxyTunnel
 var WorkerID string
+var NetManagerID string
 var Configuration netConfiguration
 
 /*
@@ -119,7 +120,8 @@ func register(writer http.ResponseWriter, request *http.Request) {
 	WorkerID = requestStruct.ClientID
 
 	//initialize mqtt connection to the broker
-	mqtt.InitNetMqttClient(requestStruct.ClientID, Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	//mqtt.InitNetMqttClient(requestStruct.ClientID, Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	mqtt.GetNetMqttClient().RegisterWorker(WorkerID)
 
 	//initialize the proxy tunnel
 	Proxy = proxy.New()
@@ -150,8 +152,14 @@ func main() {
 		logger.SetDebugMode()
 	}
 
-	log.Print(Configuration)
+	log.Println("Registering to Cluster...")
+	log.Println("Contacting Cluster: ", Configuration.ClusterUrl)
+	// get initial ID and init MQTT client
+	NetManagerID = mqtt.RegisterNetmanager(Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	log.Println("Registered: ", NetManagerID)
 
+	log.Print(Configuration)
+	log.Print(mqtt.GetNetMqttClient())
 	network.IptableFlushAll()
 
 	if *p2pMode {
@@ -159,6 +167,6 @@ func main() {
 		playground.CliLoop(Configuration.NodePublicAddress, Configuration.NodePublicPort)
 	}
 
-	log.Println("NetManager started. Waiting for registration.")
+	log.Println("NetManager started. Waiting for worker registration.")
 	handleRequests(*localPort)
 }
