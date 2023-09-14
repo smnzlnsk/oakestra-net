@@ -79,8 +79,8 @@ func InitNetMqttClient(clientid string, brokerurl string, brokerport string) *Ne
 		// TODO: Move subscription to node registration
 		//netMqttClient.topics[fmt.Sprintf("nodes/%s/net/tablequery/result", netMqttClient.clientID)] =
 		//	netMqttClient.tableQueryRequestCache.TablequeryResultMqttHandler
-		//netMqttClient.topics[fmt.Sprintf("nodes/%s/net/subnetwork/result", netMqttClient.clientID)] =
-		//	subnetworkAssignmentMqttHandler
+		netMqttClient.topics[fmt.Sprintf("nodes/%s/net/subnetwork/result", netMqttClient.clientID)] =
+			subnetworkAssignmentMqttHandler
 
 		netMqttClient.topics[fmt.Sprintf("nodes/%s/net/gateway/deploy", netMqttClient.clientID)] =
 			GatewayDeploymentHandler

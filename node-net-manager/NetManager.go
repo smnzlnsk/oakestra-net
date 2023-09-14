@@ -156,6 +156,14 @@ func main() {
 	log.Println("Contacting Cluster: ", Configuration.ClusterUrl)
 	// get initial ID and init MQTT client
 	NetManagerID = mqtt.RegisterNetmanager(Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	//initialize the proxy tunnel
+	Proxy = proxy.New()
+	Proxy.Listen()
+
+	//initialize the Env Manager
+	Env = *env.NewEnvironmentClusterConfigured(Proxy.HostTUNDeviceName)
+
+	Proxy.SetEnvironment(&Env)
 	log.Println("Registered: ", NetManagerID)
 
 	log.Print(Configuration)

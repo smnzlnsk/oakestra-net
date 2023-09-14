@@ -191,6 +191,7 @@ def subnet_request():
     """
     Returns a new subnetwork address
     """
+    app.logger.info("Incoming Request /api/net/subnet")
     addr = subnetwork_management.new_subnetwork_addr()
     addrv6 = subnetwork_management.new_subnetwork_addr_v6()
     return {'subnet_addr': addr, 'subnet_addr_v6': addrv6}
