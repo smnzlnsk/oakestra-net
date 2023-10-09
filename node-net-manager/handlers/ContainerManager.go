@@ -69,7 +69,6 @@ func (m *ContainerManager) containerDeploy(writer http.ResponseWriter, request *
 	}
 
 	reqBody, _ := io.ReadAll(request.Body)
-	log.Println("ReqBody received :", reqBody)
 	var deployTask ContainerDeployTask
 	err := json.Unmarshal(reqBody, &deployTask)
 	if err != nil {
@@ -82,7 +81,7 @@ func (m *ContainerManager) containerDeploy(writer http.ResponseWriter, request *
 	deployTask.Writer = &writer
 	deployTask.Finish = make(chan TaskReady)
 
-	logger.DebugLogger().Println(deployTask)
+	logger.DebugLogger().Println("Deploying Task: ", deployTask)
 	NewDeployTaskQueue().NewTask(&deployTask)
 
 	result := <-deployTask.Finish

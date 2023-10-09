@@ -1,16 +1,16 @@
 package model
 
 type Service struct {
-	JobID        string   `json:"_id"`
-	Sname        string   `json:"job_name"`
-	Instance     int      `json:"instance_number"`
-	Image        string   `json:"image"`
-	Commands     []string `json:"cmd"`
-	Env          []string `json:"environment"`
 	Ports        string   `json:"port"`
-	Status       string   `json:"status"`
 	Runtime      string   `json:"virtualization"`
 	StatusDetail string   `json:"status_detail"`
+	Image        string   `json:"image"`
+	Status       string   `json:"status"`
+	JobID        string   `json:"_id"`
+	Sname        string   `json:"job_name"`
+	Commands     []string `json:"cmd"`
+	Env          []string `json:"environment"`
+	Instance     int      `json:"instance_number"`
 	Vtpus        int      `json:"vtpus"`
 	Vgpus        int      `json:"vgpus"`
 	Vcpus        int      `json:"vcpus"`

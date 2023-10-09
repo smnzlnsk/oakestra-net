@@ -1,7 +1,6 @@
 package model
 
 import (
-	"NetManager/logger"
 	"fmt"
 	"net"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"github.com/shirou/gopsutil/load"
 	"github.com/shirou/gopsutil/mem"
 	psnet "github.com/shirou/gopsutil/net"
+
+	"NetManager/logger"
 )
 
 const (
@@ -23,26 +24,28 @@ const (
 )
 
 type Node struct {
-	Id             string            `json:"id"`
+	DiskInfo       map[string]string `json:"disk_info"`
+	SystemInfo     map[string]string `json:"system_info"`
+	GpuInfo        map[string]string `json:"gpu_info"`
+	NetworkInfo    map[string]string `json:"network_info"`
 	Host           string            `json:"host"`
 	Ip             string            `json:"ip"`
 	Ipv6           string            `json:"ipv6"`
-	Port           string            `json:"port"`
-	SystemInfo     map[string]string `json:"system_info"`
-	CpuUsage       float64           `json:"cpu"`
-	CpuCores       int               `json:"free_cores"`
-	MemoryUsed     float64           `json:"memory"`
-	MemoryMB       int               `json:"memory_free_in_MB"`
-	DiskInfo       map[string]string `json:"disk_info"`
-	NetworkInfo    map[string]string `json:"network_info"`
-	GpuInfo        map[string]string `json:"gpu_info"`
+	Id             string            `json:"id"`
 	Technology     []string          `json:"technology"`
-	Overlay        bool
+	Port           int               `json:"port"`
+	MemoryMB       int               `json:"memory_free_in_MB"`
+	MemoryUsed     float64           `json:"memory"`
+	CpuCores       int               `json:"free_cores"`
+	CpuUsage       float64           `json:"cpu"`
 	NetManagerPort int
+	Overlay        bool
 }
 
-var once sync.Once
-var node Node
+var (
+	once sync.Once
+	node Node
+)
 
 func GetNodeInfo() Node {
 	once.Do(func() {
@@ -102,7 +105,9 @@ func getIp(version string) string {
 				logger.InfoLogger().Println("Public IPv4: ", ipnet.IP.String())
 				return ipnet.IP.String()
 			}
-			if version == "6" && ipnet.IP.To16() != nil && ipnet.IP.To4() == nil && ipnet.IP.IsGlobalUnicast() && !ipnet.IP.IsPrivate() {
+			if version == "6" && ipnet.IP.To16() != nil && ipnet.IP.To4() == nil &&
+				ipnet.IP.IsGlobalUnicast() &&
+				!ipnet.IP.IsPrivate() {
 				logger.InfoLogger().Println("Public IPv6: ", ipnet.IP.String())
 				return ipnet.IP.String()
 			}
@@ -212,12 +217,13 @@ func getNetworkInfo() map[string]string {
 	return netInfoMap
 }
 
-func getPort() string {
+func getPort() int {
 	port := os.Getenv("MY_PORT")
 	if port == "" {
 		port = "3000"
 	}
-	return port
+	ret, _ := strconv.Atoi(port)
+	return ret
 }
 
 func getSupportedTechnologyList() []string {

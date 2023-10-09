@@ -23,6 +23,7 @@ func GetContainerNetDeployment() *ContainerDeyplomentHandler {
 	}
 	return containerHandler
 }
+
 func InitContainerDeployment(env *Environment) {
 	containerHandler = &ContainerDeyplomentHandler{
 		env: env,
@@ -31,7 +32,6 @@ func InitContainerDeployment(env *Environment) {
 
 // AttachNetworkToContainer Attach a Docker container to the bridge and the current network environment
 func (h *ContainerDeyplomentHandler) DeployNetwork(pid int, sname string, instancenumber int, portmapping string) (net.IP, net.IP, error) {
-
 	env := h.env
 
 	cleanup := func(veth *netlink.Veth) {
@@ -56,14 +56,14 @@ func (h *ContainerDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 		return nil, nil, err
 	}
 
-	//generate a new ip for this container
+	// generate a new ip for this container
 	ip, err := env.generateAddress()
 	if err != nil {
 		cleanup(vethIfce)
 		return nil, nil, err
 	}
 
-	//generate a new ipv6 for this container
+	// generate a new ipv6 for this container
 	ipv6, err := env.generateIPv6Address()
 	if err != nil {
 		cleanup(vethIfce)
@@ -87,7 +87,7 @@ func (h *ContainerDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 		return nil, nil, err
 	}
 
-	//Add traffic route to bridge
+	// Add traffic route to bridge
 	logger.DebugLogger().Println("Setting container routes ")
 	if err = env.setContainerRoutes(pid, vethIfce.PeerName); err != nil {
 		cleanup(vethIfce)
@@ -139,7 +139,7 @@ func (env *Environment) DetachContainer(sname string, instance int) {
 	s, ok := env.deployedServices[snameAndInstance]
 	env.deployedServicesLock.RUnlock()
 	if ok {
-		// TODO Remove ipv6?
+		// TODO: Remove ipv6?
 		_ = env.translationTable.RemoveByNsip(s.ip)
 		env.deployedServicesLock.Lock()
 		delete(env.deployedServices, snameAndInstance)
@@ -149,7 +149,7 @@ func (env *Environment) DetachContainer(sname string, instance int) {
 		_ = network.ManageContainerPorts(s.ip, s.portmapping, network.ClosePorts)
 		_ = network.ManageContainerPorts(s.ipv6, s.portmapping, network.ClosePorts)
 		_ = netlink.LinkDel(s.veth)
-		//if no interest registered delete all remaining info about the service
+		// if no interest registered delete all remaining info about the service
 		if !mqtt.MqttIsInterestRegistered(sname) {
 			env.RemoveServiceEntries(sname)
 		}

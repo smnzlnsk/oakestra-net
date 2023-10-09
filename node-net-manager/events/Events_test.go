@@ -10,7 +10,7 @@ func handlers(done chan bool, job string) {
 	eventchannel, _ := eventManager.Register(TableQuery, job)
 	done <- true
 	select {
-	case _ = <-eventchannel:
+	case <-eventchannel:
 		done <- true
 	case <-time.After(1 * time.Second):
 		done <- false
@@ -104,5 +104,4 @@ func TestRegisterMultipleAndEmit(t *testing.T) {
 	if !res2 {
 		t.Error("Event not received")
 	}
-
 }

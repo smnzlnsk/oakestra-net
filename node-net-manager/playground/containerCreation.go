@@ -3,13 +3,14 @@ package playground
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"io/ioutil"
 )
 
 var client, err = containerd.New("/run/containerd/containerd.sock")
@@ -44,7 +45,7 @@ func Start(sname string, imageName string, instance int, cmd []string, iip strin
 	}
 	//add resolve file with default google dns
 	resolvconfFile, _ := ioutil.TempFile("/tmp", "edgeio-resolv-conf")
-	_, _ = resolvconfFile.WriteString(fmt.Sprintf("nameserver 8.8.8.8\n"))
+	_, _ = resolvconfFile.WriteString(fmt.Sprint("nameserver 8.8.8.8\n"))
 	defer resolvconfFile.Close()
 	_ = resolvconfFile.Chmod(444)
 	specOpts = append(specOpts, withCustomResolvConf(resolvconfFile.Name()))

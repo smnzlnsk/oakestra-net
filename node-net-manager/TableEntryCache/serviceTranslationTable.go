@@ -13,13 +13,13 @@ type TableEntry struct {
 	Appns            string      `json:"appns"`
 	Servicename      string      `json:"servicename"`
 	Servicenamespace string      `json:"servicenamespace"`
-	Instancenumber   int         `json:"instancenumber"`
-	Cluster          int         `json:"cluster"`
 	Nodeip           net.IP      `json:"nodeip"`
-	Nodeport         int         `json:"nodeport"`
 	Nsip             net.IP      `json:"nsip"`
 	Nsipv6           net.IP      `json:"nsipv6"`
 	ServiceIP        []ServiceIP `json:"serviceIP"`
+	Instancenumber   int         `json:"instancenumber"`
+	Cluster          int         `json:"cluster"`
+	Nodeport         int         `json:"nodeport"`
 }
 
 type ServiceIpType int
@@ -31,9 +31,9 @@ const (
 )
 
 type ServiceIP struct {
-	IpType     ServiceIpType `json:"ip_type"`
 	Address    net.IP        `json:"address"`
 	Address_v6 net.IP        `json:"address_v6"`
+	IpType     ServiceIpType `json:"ip_type"`
 }
 
 type TableManager struct {
@@ -46,7 +46,7 @@ func NewTableManager() TableManager {
 		translationTable: make([]TableEntry, 0),
 		rwlock:           sync.RWMutex{},
 	}
-	//TODO cleanup of old entry every X seconds
+	// TODO: cleanup of old entry every X seconds
 }
 
 func (t *TableManager) Add(entry TableEntry) error {
@@ -61,7 +61,6 @@ func (t *TableManager) Add(entry TableEntry) error {
 
 // remove by Namespace IP, which can be either in IPv4 or IPv6 format
 func (t *TableManager) RemoveByNsip(nsip net.IP) error {
-
 	t.rwlock.Lock()
 	defer t.rwlock.Unlock()
 
@@ -101,12 +100,12 @@ func (t *TableManager) removeByIndex(index int) error {
 		t.translationTable = t.translationTable[:len(t.translationTable)-1]
 		return nil
 	}
-	return errors.New("Entry not found")
+	return errors.New("entry not found")
 }
 
 func (t *TableManager) SearchByServiceIP(ip net.IP) []TableEntry {
-	//log.Println("Table research, table length: ", len(t.translationTable))
-	//log.Println(t.translationTable)
+	// log.Println("Table research, table length: ", len(t.translationTable))
+	// log.Println(t.translationTable)
 	result := make([]TableEntry, 0)
 	t.rwlock.Lock()
 	defer t.rwlock.Unlock()

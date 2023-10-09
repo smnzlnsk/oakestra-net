@@ -359,7 +359,7 @@ func TestTableDeleteManyInstances_2(t *testing.T) {
 
 	if len(table.translationTable) != 0 {
 		fmt.Printf("%v", table.translationTable)
-		t.Error(fmt.Sprintf("Table size should be 0, instead is %d", len(table.translationTable)))
+		t.Errorf("Table size should be 0, instead is %d", len(table.translationTable))
 	}
 
 	if len(table.SearchByJobName("a1.a1.a2.a2")) > 0 {

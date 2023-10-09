@@ -2,6 +2,7 @@ package main
 
 import (
 	"NetManager/env"
+	"NetManager/gateway"
 	"NetManager/handlers"
 	"NetManager/logger"
 	"NetManager/mqtt"
@@ -43,44 +44,24 @@ type netConfiguration struct {
 func handleRequests(port int) {
 	netRouter := mux.NewRouter().StrictSlash(true)
 	netRouter.HandleFunc("/register", register).Methods("POST")
-	netRouter.HandleFunc("/docker/deploy", dockerDeploy).Methods("POST")
 
-	handlers.RegisterAllManagers(&Env, &WorkerID, Configuration.NodePublicAddress, Configuration.NodePublicPort, netRouter)
+	handlers.RegisterAllManagers(
+		&Env,
+		&WorkerID,
+		Configuration.NodePublicAddress,
+		Configuration.NodePublicPort,
+		netRouter,
+	)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), netRouter))
 }
 
-var Env env.Environment
-var Proxy proxy.GoProxyTunnel
-var WorkerID string
-var NetManagerID string
-var Configuration netConfiguration
-
-/*
-	DEPRECATED
-
-Endpoint: /docker/deploy
-Usage: used to assign a network to a docker container. This method can be used only after the registration
-Method: POST
-Request Json:
-
-	{
-		containerId:string #name of the container or containerid
-		appName:string
-		instanceNumber:int
-	}
-
-Response Json:
-
-	{
-		serviceName:    string
-		nsAddress:  	string # address assigned to this container
-	}
-*/
-func dockerDeploy(writer http.ResponseWriter, request *http.Request) {
-	log.Println("Received HTTP request - /docker/deploy ")
-	writer.WriteHeader(299)
-	_, _ = writer.Write([]byte("DEPRECATED API"))
-}
+var (
+	Env env.Environment
+	// Proxy         proxy.GoProxyTunnel
+	WorkerID      string
+	NetManagerID  string
+	Configuration netConfiguration
+)
 
 /*
 Endpoint: /register
@@ -105,7 +86,7 @@ func register(writer http.ResponseWriter, request *http.Request) {
 	}
 	log.Println(requestStruct)
 
-	//drop the request if the node is already initialized
+	// drop the request if the node is already initialized
 	if WorkerID != "" {
 		if WorkerID == requestStruct.ClientID {
 			log.Printf("Node already initialized")
@@ -119,28 +100,22 @@ func register(writer http.ResponseWriter, request *http.Request) {
 
 	WorkerID = requestStruct.ClientID
 
-	//initialize mqtt connection to the broker
-	//mqtt.InitNetMqttClient(requestStruct.ClientID, Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	// initialize mqtt connection to the broker
+	// mqtt.InitNetMqttClient(requestStruct.ClientID, Configuration.ClusterUrl, Configuration.ClusterMqttPort)
 	mqtt.GetNetMqttClient().RegisterWorker(WorkerID)
-
-	//initialize the proxy tunnel
-	Proxy = proxy.New()
-	Proxy.Listen()
-
-	//initialize the Env Manager
-	Env = *env.NewEnvironmentClusterConfigured(Proxy.HostTUNDeviceName)
-
-	Proxy.SetEnvironment(&Env)
 
 	writer.WriteHeader(http.StatusOK)
 }
 
 func main() {
-
 	cfgFile := flag.String("cfg", "/etc/netmanager/netcfg.json", "Set a cluster IP")
 	localPort := flag.Int("p", 6000, "Default local port of the NetManager")
 	debugMode := flag.Bool("D", false, "Debug mode, it enables debug-level logs")
-	p2pMode := flag.Bool("p2p", false, "Start the engine in p2p mode (playground2playground), requires the address of a peer node. Useful for debugging.")
+	p2pMode := flag.Bool(
+		"p2p",
+		false,
+		"Start the engine in p2p mode (playground2playground), requires the address of a peer node. Useful for debugging.",
+	)
 	flag.Parse()
 
 	err := gonfig.GetConf(*cfgFile, &Configuration)
@@ -155,16 +130,29 @@ func main() {
 	log.Println("Registering to Cluster...")
 	log.Println("Contacting Cluster: ", Configuration.ClusterUrl)
 	// get initial ID and init MQTT client
-	NetManagerID = mqtt.RegisterNetmanager(Configuration.ClusterUrl, Configuration.ClusterMqttPort)
-	//initialize the proxy tunnel
-	Proxy = proxy.New()
-	Proxy.Listen()
-
-	//initialize the Env Manager
-	Env = *env.NewEnvironmentClusterConfigured(Proxy.HostTUNDeviceName)
-
-	Proxy.SetEnvironment(&Env)
+	NetManagerID = gateway.RegisterNetmanager(
+		Configuration.ClusterUrl,
+		Configuration.NodePublicPort,
+	)
 	log.Println("Registered: ", NetManagerID)
+
+	mqtt.InitNetMqttClient(NetManagerID, Configuration.ClusterUrl, Configuration.ClusterMqttPort)
+	mqtt.GetNetMqttClient().
+		RegisterTopic(fmt.Sprintf("nodes/%s/net/gateway/deploy", mqtt.GetNetMqttClient().ClientID), gateway.GatewayDeploymentHandler)
+
+	// Moved interface setup into main, since we can assume that a netmanager is going to be used at some point regardless
+	// of whether as a gateway or worker node - both require the network stack to work
+	// initialize the proxy tunnel
+	// Proxy = proxy.New()
+	// Proxy.Listen()
+	proxy.New()
+	proxy.Proxy().Listen()
+
+	// initialize the Env Manager
+	Env = *env.NewEnvironmentClusterConfigured(proxy.Proxy().HostTUNDeviceName)
+
+	// Proxy.SetEnvironment(&Env)
+	proxy.Proxy().SetEnvironment(&Env)
 
 	log.Print(Configuration)
 	log.Print(mqtt.GetNetMqttClient())

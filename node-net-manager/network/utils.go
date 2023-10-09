@@ -1,14 +1,13 @@
 package network
 
 import (
+	"NetManager/logger"
 	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
 	"log"
 	"net"
 	"time"
-
-	"NetManager/logger"
 
 	"tailscale.com/net/interfaces"
 )
@@ -35,7 +34,7 @@ func GetLocalIPandIface() (string, string) {
 			logger.InfoLogger().Printf("idx: %d IP: %s", idx, address.String())
 			// check the address type and if it is not a loopback the display it
 			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() && iface.Name == defaultIfce {
-				// TODO DISCUSS: Should we first check for IPv6 on the interface first and fallback to v4?
+				// TODO: DISCUSS: Should we first check for IPv6 on the interface first and fallback to v4?
 				if ipnet.IP.To4() != nil {
 					log.Println("Local Interface in use: ", iface.Name, " with addr ", ipnet.IP.String())
 					return ipnet.IP.String(), iface.Name
@@ -47,9 +46,38 @@ func GetLocalIPandIface() (string, string) {
 	return "", ""
 }
 
+// https://gist.github.com/schwarzeni/f25031a3123f895ff3785970921e962c
+func GetInterfaceIPByName(interfaceName string) (addresses []net.IP, err error) {
+	var (
+		ief      *net.Interface
+		addrs    []net.Addr
+		ipv4Addr net.IP
+		ipv6Addr net.IP
+	)
+	if ief, err = net.InterfaceByName(interfaceName); err != nil { // get interface
+		return nil, err
+	}
+	if addrs, err = ief.Addrs(); err != nil { // get addresses
+		return nil, err
+	}
+	for _, addr := range addrs { // get ipv4 address
+		if ipv4Addr = addr.(*net.IPNet).IP.To4(); ipv4Addr != nil {
+			addresses = append(addresses, ipv4Addr)
+			continue
+		}
+		if ipv6Addr = addr.(*net.IPNet).IP.To16(); ipv6Addr != nil && !ipv6Addr.IsLinkLocalMulticast() && !ipv6Addr.IsLinkLocalUnicast() {
+			addresses = append(addresses, ipv6Addr)
+		}
+	}
+	if addresses == nil {
+		return nil, fmt.Errorf("interface %s don't have any addresses", interfaceName)
+	}
+	return addresses, nil
+}
+
 func NameUniqueHash(name string, size int) string {
 	shaHashFunc := sha1.New()
-	shaHashFunc.Write([]byte(fmt.Sprintf("%s,%s", time.Now().String(), name)))
+	fmt.Fprintf(shaHashFunc, "%s,%s", time.Now().String(), name)
 	hashed := shaHashFunc.Sum(nil)
 	for size > len(hashed) {
 		hashed = append(hashed, hashed...)
@@ -59,7 +87,7 @@ func NameUniqueHash(name string, size int) string {
 }
 
 // Given an IP, give IP+inc
-// TODO rework, since it is not safe for use
+// FIXME: rework, since it is hacky and could cause problems
 func NextIP(ip net.IP, inc uint) net.IP {
 	ipBytes := ip.To16()
 	for i := len(ipBytes) - 1; i >= 0; i-- {

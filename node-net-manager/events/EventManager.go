@@ -12,14 +12,14 @@ type EventManager interface {
 }
 
 type Events struct {
-	//map of event target to event kind
+	// map of event target to event kind
 	eventTableQueryChannelQueue map[string]chan Event
 }
 
 type Event struct {
-	EventType    EventType
 	EventTarget  string
 	EventMessage string
+	EventType    EventType
 }
 
 type EventType int
@@ -29,11 +29,11 @@ const (
 )
 
 /* ------------- singleton instance ------- */
-var once sync.Once
-var rwlock sync.RWMutex
 var (
-	eventInstance EventManager
+	once   sync.Once
+	rwlock sync.RWMutex
 )
+var eventInstance EventManager
 
 /* ------------------------------------------*/
 
@@ -53,7 +53,7 @@ func (e *Events) Emit(event Event) {
 	case TableQuery:
 		channel := e.eventTableQueryChannelQueue[event.EventTarget]
 		if channel != nil {
-			//check channel buffer capacity to prevent blocking. If this is false, probably no receiver is active.
+			// check channel buffer capacity to prevent blocking. If this is false, probably no receiver is active.
 			if len(channel) < cap(channel) {
 				channel <- event
 			}
@@ -73,7 +73,7 @@ func (e *Events) Register(eventType EventType, eventTarget string) (chan Event, 
 		e.eventTableQueryChannelQueue[eventTarget] = channel
 		return channel, nil
 	}
-	return nil, errors.New("Invalid EventType")
+	return nil, errors.New("invalid EventType")
 }
 
 func (e *Events) DeRegister(eventType EventType, eventTarget string) {

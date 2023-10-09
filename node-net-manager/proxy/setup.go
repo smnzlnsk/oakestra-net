@@ -3,7 +3,6 @@ package proxy
 import (
 	"NetManager/env"
 	"NetManager/logger"
-	"NetManager/network"
 	"fmt"
 	"log"
 	"math/rand"
@@ -14,7 +13,14 @@ import (
 	"sync"
 
 	"github.com/songgao/water"
+	"tailscale.com/net/interfaces"
 )
+
+var proxyTunnel GoProxyTunnel
+
+func Proxy() *GoProxyTunnel {
+	return &proxyTunnel
+}
 
 // create a  new GoProxyTunnel with the configuration from the custom local file
 func New() GoProxyTunnel {
@@ -47,18 +53,18 @@ func New() GoProxyTunnel {
 	// IPv6
 	tunNetIPv6 := os.Getenv("TUN_NET_IPv6")
 	if len(tunNetIPv6) == 0 {
-		logger.InfoLogger().Printf("Default to tunNetIPv6 fcef::dead:beef")
-		tunNetIPv6 = "fcef::dead:beef"
+		tunNetIPv6 = "fdff::c01d:c0ff:ee:dead:beef"
+		logger.InfoLogger().Printf("Default to tunNetIPv6 %s", tunNetIPv6)
 	}
 	proxyIPv6Subnetwork := os.Getenv("PROXY_IPv6_SUBNETWORK")
 	if len(proxyIPv6Subnetwork) == 0 {
-		logger.InfoLogger().Printf("Default to proxy IPv6 subnetwork fc00::")
-		proxyIPv6Subnetwork = "fc00::"
+		proxyIPv6Subnetwork = "fdff::"
+		logger.InfoLogger().Printf("Default to proxy IPv6 subnetwork %s", proxyIPv6Subnetwork)
 	}
 	proxyIPv6SubnetworkPrefix, err := strconv.Atoi(os.Getenv("PROXY_IPv6_SUBNETWORKPREFIX"))
 	if err != nil {
-		logger.InfoLogger().Printf("Default to proxy IPv6 network prefix 7")
-		proxyIPv6SubnetworkPrefix = 7
+		proxyIPv6SubnetworkPrefix = 16
+		logger.InfoLogger().Printf("Default to proxy IPv6 network prefix %d", proxyIPv6SubnetworkPrefix)
 	}
 
 	tunconfig := Configuration{
@@ -72,7 +78,9 @@ func New() GoProxyTunnel {
 		ProxySubnetworkIPv6Prefix: proxyIPv6SubnetworkPrefix,
 		ProxySubnetworkIPv6:       proxyIPv6Subnetwork,
 	}
-	return NewCustom(tunconfig)
+	proxyTunnel = NewCustom(tunconfig)
+
+	return proxyTunnel
 }
 
 // create a  new GoProxyTunnel with a custom configuration
@@ -92,7 +100,7 @@ func NewCustom(configuration Configuration) GoProxyTunnel {
 		randseed:         rand.New(rand.NewSource(42)),
 	}
 
-	//parse configuration file
+	// parse configuration file
 	tunconfig := configuration
 	proxy.HostTUNDeviceName = tunconfig.HostTUNDeviceName
 	proxy.ProxyIpSubnetwork = net.IPNet{
@@ -107,11 +115,11 @@ func NewCustom(configuration Configuration) GoProxyTunnel {
 		Mask: net.CIDRMask(tunconfig.ProxySubnetworkIPv6Prefix, 128),
 	}
 	proxy.tunNetIPv6 = tunconfig.TunNetIPv6
-	//create the TUN device
+	// create the TUN device
 	proxy.createTun()
 
-	//set local ip
-	ipstring, _ := network.GetLocalIPandIface()
+	// set local ip
+	ipstring, _ := getLocalIPandIface()
 	proxy.localIP = net.ParseIP(ipstring)
 
 	logger.InfoLogger().Printf("Created ProxyTun device: %s\n", proxy.ifce.Name())
@@ -121,7 +129,7 @@ func NewCustom(configuration Configuration) GoProxyTunnel {
 }
 
 func (proxy *GoProxyTunnel) SetEnvironment(env env.EnvironmentManager) {
-	proxy.environment = env
+	proxy.Environment = env
 }
 
 func (proxy *GoProxyTunnel) IsListening() bool {
@@ -139,7 +147,7 @@ func (proxy *GoProxyTunnel) Listen() {
 
 // create an instance of the proxy TUN device and setup the environment
 func (proxy *GoProxyTunnel) createTun() {
-	//create tun device
+	// create tun device
 	config := water.Config{
 		DeviceType: water.TUN,
 	}
@@ -167,7 +175,7 @@ func (proxy *GoProxyTunnel) createTun() {
 		log.Fatal(err)
 	}
 
-	//disabling reverse path filtering
+	// disabling reverse path filtering
 	logger.InfoLogger().Println("Disabling tun dev reverse path filtering")
 	cmd = exec.Command("echo", "0", ">", "/proc/sys/net/ipv4/conf/"+ifce.Name()+"/rp_filter")
 	err = cmd.Run()
@@ -175,7 +183,7 @@ func (proxy *GoProxyTunnel) createTun() {
 		log.Printf("Error disabling tun dev reverse path filtering: %s ", err.Error())
 	}
 
-	//Increasing the MTU on the TUN dev
+	// Increasing the MTU on the TUN dev
 	logger.InfoLogger().Println("Changing TUN's MTU")
 	cmd = exec.Command("ip", "link", "set", "dev", ifce.Name(), "mtu", proxy.mtusize)
 	err = cmd.Run()
@@ -183,17 +191,26 @@ func (proxy *GoProxyTunnel) createTun() {
 		log.Fatal(err.Error())
 	}
 
-	//Add network routing rule, Done by default by the system
-	logger.InfoLogger().Printf("adding routing rule for %s to %s\n", proxy.ProxyIpSubnetwork.String(), ifce.Name())
+	// Add network routing rule, Done by default by the system
+	logger.InfoLogger().
+		Printf("adding routing rule for %s to %s\n", proxy.ProxyIpSubnetwork.String(), ifce.Name())
 	cmd = exec.Command("ip", "route", "add", "10.30.0.0/12", "dev", ifce.Name())
 	_, _ = cmd.Output()
 
-	//Add network routing rule, Done by default by the system
-	logger.InfoLogger().Printf("adding routing rule for %s to %s\n", proxy.ProxyIPv6Subnetwork.IP.String(), ifce.Name())
-	cmd = exec.Command("ip", "route", "add", proxy.ProxyIPv6Subnetwork.IP.String()+proxy.ProxyIPv6Subnetwork.Mask.String(), "dev", ifce.Name())
+	// Add network routing rule, Done by default by the system
+	logger.InfoLogger().
+		Printf("adding routing rule for %s to %s\n", proxy.ProxyIPv6Subnetwork.IP.String(), ifce.Name())
+	cmd = exec.Command(
+		"ip",
+		"route",
+		"add",
+		proxy.ProxyIPv6Subnetwork.IP.String()+proxy.ProxyIPv6Subnetwork.Mask.String(),
+		"dev",
+		ifce.Name(),
+	)
 	_, _ = cmd.Output()
 
-	//add firewalls rules
+	// add firewalls rules
 	logger.InfoLogger().Println("adding firewall rule " + ifce.Name())
 	cmd = exec.Command("iptables", "-A", "INPUT", "-i", "tun0", "-m", "state",
 		"--state", "RELATED,ESTABLISHED", "-j", "ACCEPT")
@@ -226,4 +243,44 @@ func (proxy *GoProxyTunnel) createTun() {
 	proxy.HostTUNDeviceName = ifce.Name()
 	proxy.ifce = ifce
 	proxy.listenConnection = lstnConn
+}
+
+// GetLocalIP returns the non loopback local IP of the host and the associated interface
+func getLocalIPandIface() (string, string) {
+	list, err := net.Interfaces()
+	if err != nil {
+		log.Printf("not net Interfaces found")
+		panic(err)
+	}
+	defaultIfce, err := interfaces.DefaultRouteInterface()
+	if err != nil {
+		log.Printf("not default Interfaces found")
+		panic(err)
+	}
+
+	for _, iface := range list {
+		addrs, err := iface.Addrs()
+		if err != nil {
+			panic(err)
+		}
+		for idx, address := range addrs {
+			logger.InfoLogger().Printf("idx: %d IP: %s", idx, address.String())
+			// check the address type and if it is not a loopback the display it
+			if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() &&
+				iface.Name == defaultIfce {
+				// NOTE: Should we first check for IPv6 on the interface first and fallback to v4?
+				if ipnet.IP.To4() != nil {
+					log.Println(
+						"Local Interface in use: ",
+						iface.Name,
+						" with addr ",
+						ipnet.IP.String(),
+					)
+					return ipnet.IP.String(), iface.Name
+				}
+			}
+		}
+	}
+
+	return "", ""
 }

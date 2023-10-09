@@ -22,7 +22,7 @@ def root_service_manager_get_subnet():
     except requests.exceptions.RequestException as e:
         print('Calling System Manager /api/net/subnet not successful.')
 
-
+""" TODO: Delete?
 def root_service_manager_get_gateway_ip(gateway_id):
     print('Asking the System Manager for a Gateway IP for ' + str(gateway_id))
     try:
@@ -35,7 +35,7 @@ def root_service_manager_get_gateway_ip(gateway_id):
             raise requests.exceptions.RequestException('No gateway address found')
     except requests.exceptions.RequestException as e:
         print('Calling System Manager /api/gateway/' + str(gateway_id) + '/subnet not successful.')
-
+"""
 
 def system_manager_notify_deployment_status(job, worker_id):
     print('Sending deployment status information to System Manager.')

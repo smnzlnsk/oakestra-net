@@ -24,13 +24,14 @@ func GetUnikernelNetDeployment() *UnikernelDeyplomentHandler {
 	}
 	return unikernelHandler
 }
+
 func InitUnikernelDeployment(env *Environment) {
 	unikernelHandler = &UnikernelDeyplomentHandler{
 		env: env,
 	}
 }
-func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instancenumber int, portmapping string) (net.IP, net.IP, error) {
 
+func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instancenumber int, portmapping string) (net.IP, net.IP, error) {
 	env := h.env
 	name := sname
 	sname = fmt.Sprintf("%s.instance.%d", sname, instancenumber)
@@ -55,7 +56,7 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 	logger.DebugLogger().Printf("Creating Namespace for unikernel (%s)", sname)
 	nscreation := exec.Command("ip", "netns", "add", sname)
 	err = nscreation.Run()
-	//ns, err := netns.NewNamed(sname) ## Changes Namespace of current application
+	// ns, err := netns.NewNamed(sname) ## Changes Namespace of current application
 	if err != nil {
 		cleanup(vethIfce)
 		return nil, nil, err
@@ -81,14 +82,14 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 		return nil, nil, err
 	}
 
-	//Get IP for veth interface
+	// Get IP for veth interface
 	ip, err := env.generateAddress()
 	if err != nil {
 		cleanup(vethIfce)
 		return nil, nil, err
 	}
 
-	//Get IPv6 for veth interface
+	// Get IPv6 for veth interface
 	ipv6, err := env.generateIPv6Address()
 	if err != nil {
 		cleanup(vethIfce)
@@ -111,8 +112,8 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 		return nil, nil, err
 	}
 
-	// TODO IPv6 bridge support needs testing - routes inside Ns?
-	//Create Bridge and tap within Ns
+	// TODO: IPv6 bridge support needs testing - routes inside Ns?
+	// Create Bridge and tap within Ns
 	logger.DebugLogger().Println("Creating Bridge and Tap inside of Ns")
 	labr := netlink.NewLinkAttrs()
 	labr.Name = "virbr0"
@@ -121,32 +122,32 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 	lat.Name = "tap0"
 	tap := &netlink.Tuntap{LinkAttrs: lat, Mode: netlink.TUNTAP_MODE_TAP}
 	err = env.execInsideNsByName(sname, func() error {
-		//Create Bridge
+		// Create Bridge
 		err := netlink.LinkAdd(bridge)
 		if err != nil {
 			logger.DebugLogger().Printf("Unable to create Bridge: %v\n", err)
 			return err
 		}
-		//Set IP on Bridge
+		// Set IP on Bridge
 		addrbr, _ := netlink.ParseAddr("192.168.1.1/30")
 		err = netlink.AddrAdd(bridge, addrbr)
 		if err != nil {
 			logger.DebugLogger().Printf("Unable to add ip address to bridge: %v\n", err)
 			return err
 		}
-		//Create tap for Qemu
+		// Create tap for Qemu
 		err = netlink.LinkAdd(tap)
 		if err != nil {
 			logger.DebugLogger().Printf("Unable to create Tap: %v\n", err)
 			return err
 		}
-		//Attach tap to Bridge
+		// Attach tap to Bridge
 		if netlink.LinkSetMaster(tap, bridge) != nil {
 			logger.DebugLogger().Printf("Unable to set master to tap: %v\n", err)
 			return err
 		}
 
-		//ip link set up virbr0/tap0
+		// ip link set up virbr0/tap0
 		cmd := exec.Command("ip", "link", "set", "up", "dev", "virbr0")
 		err = cmd.Run()
 		if err != nil {
@@ -158,7 +159,7 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 			return err
 		}
 
-		//Set route for Ns
+		// Set route for Ns
 		dst, err := netlink.ParseIPNet("0.0.0.0/0")
 		if err != nil {
 			return err
@@ -179,7 +180,7 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 			return err
 		}
 		gwv6 := net.ParseIP(env.config.HostBridgeIPv6)
-		netlink.RouteAdd(&netlink.Route{
+		err = netlink.RouteAdd(&netlink.Route{
 			LinkIndex: peerVeth.Attrs().Index,
 			Dst:       dstv6,
 			Gw:        gwv6,
@@ -189,8 +190,8 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 			return err
 		}
 
-		// TODO IPv6
-		//Set NAT for Unikernel
+		// TODO: IPv6
+		// Set NAT for Unikernel
 		cmd = exec.Command("iptables", "-t", "nat", "-A", "POSTROUTING", "-o", vethIfce.PeerName, "-j", "SNAT", "--to", ip.String())
 		err = cmd.Run()
 		if err != nil {
@@ -247,14 +248,13 @@ func (h *UnikernelDeyplomentHandler) DeployNetwork(pid int, sname string, instan
 	env.deployedServicesLock.Unlock()
 	logger.DebugLogger().Println("Successful Network creation for Unikernel")
 	return ip, ipv6, nil
-
 }
 
 func (env *Environment) DeleteUnikernelNamespace(sname string, instance int) {
 	name := fmt.Sprintf("%s.instance.%d", sname, instance)
 	s, ok := env.deployedServices[name]
 	if ok {
-		// TODO Remove ipv6?
+		// TODO: Remove ipv6?
 		_ = env.translationTable.RemoveByNsip(s.ip)
 		env.deployedServicesLock.Lock()
 		delete(env.deployedServices, name)

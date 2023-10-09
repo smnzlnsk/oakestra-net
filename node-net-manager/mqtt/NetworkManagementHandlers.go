@@ -21,14 +21,14 @@ type mqttSubnetworkRequest struct {
 type mqttDeployNotification struct {
 	Appname        string `json:"appname"`
 	Status         string `json:"status"`
-	Instancenumber int    `json:"instance_number"`
 	Nsip           string `json:"nsip"`
 	Nsipv6         string `json:"nsipv6"`
 	Hostport       string `json:"host_port"`
 	Hostip         string `json:"host_ip"`
+	Instancenumber int    `json:"instance_number"`
 }
 
-func subnetworkAssignmentMqttHandler(client mqtt.Client, msg mqtt.Message) {
+func subnetworkAssignmentMqttHandler(_ mqtt.Client, msg mqtt.Message) {
 	responseStruct := mqttSubnetworkResponse{}
 	err := json.Unmarshal(msg.Payload(), &responseStruct)
 	if err != nil {
@@ -50,12 +50,12 @@ func RequestSubnetworkMqttBlocking() (string, error) {
 		_ = GetNetMqttClient().PublishToBroker("subnet", string(jsonreq))
 	}()
 
-	//waiting for maximum 10 seconds the mqtt handler to receive a response. Otherwise fail the subnetwork request.
+	// waiting for maximum 10 seconds the mqtt handler to receive a response. Otherwise fail the subnetwork request.
 	select {
 	case result := <-subnetworkResponseChannel:
 		if result != "" {
 			// add whitespace between networks
-			// TODO make optional, for network-stack adjustment
+			// TODO: make optional, for network-stack adjustment
 			result += " " + <-subnetworkResponseChannel
 			return result, nil
 		}

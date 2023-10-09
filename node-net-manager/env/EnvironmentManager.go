@@ -27,6 +27,7 @@ type EnvironmentManager interface {
 	GetTableEntryByServiceIP(ip net.IP) []TableEntryCache.TableEntry
 	GetTableEntryByNsIP(ip net.IP) (TableEntryCache.TableEntry, bool)
 	GetTableEntryByInstanceIP(ip net.IP) (TableEntryCache.TableEntry, bool)
+	AddTableQueryEntry(entry TableEntryCache.TableEntry)
 }
 
 type Configuration struct {
@@ -41,48 +42,45 @@ type Configuration struct {
 }
 
 type Environment struct {
-	//### Environment management variables
-	nodeNetwork       net.IPNet
-	nodeNetworkv6     net.IPNet
-	nameSpaces        []string
-	networkInterfaces []networkInterface
-	nextVethNumber    int
-	proxyName         string
-	config            Configuration
-	translationTable  TableEntryCache.TableManager
-	//### Deployment management variables
-	deployedServices     map[string]service //all the deployed services with the ip and ports
-	deployedServicesLock sync.RWMutex
-	nextContainerIP      net.IP //next address for the next container to be deployed
+	deployedServices     map[string]service
+	proxyName            string
+	clusterPort          string
+	clusterAddr          string
+	config               Configuration
+	nodeNetwork          net.IPNet
+	nodeNetworkv6        net.IPNet
+	addrCache            []net.IP
+	networkInterfaces    []networkInterface
+	nameSpaces           []string
+	nextContainerIP      net.IP
 	nextContainerIPv6    net.IP
-	totNextAddr          int //number of addresses currently generated, max 62
-	totNextAddrv6        int
-	addrCache            []net.IP //Cache used to store the free addresses available for new containers
 	addrCachev6          []net.IP
-	//### Communication variables
-	clusterPort string
-	clusterAddr string
-	mtusize     int
+	translationTable     TableEntryCache.TableManager
+	nextVethNumber       int
+	totNextAddrv6        int
+	totNextAddr          int
+	mtusize              int
+	deployedServicesLock sync.RWMutex
 }
 
 type service struct {
-	ip          net.IP
-	ipv6        net.IP
+	veth        *netlink.Veth
 	sname       string
 	portmapping string
-	veth        *netlink.Veth
+	ip          net.IP
+	ipv6        net.IP
 }
 
 // current network interfaces in the system
 type networkInterface struct {
-	number                   int
 	veth0                    string
-	veth0ip                  net.IP
 	veth1                    string
-	veth1ip                  net.IP
-	isConnectedToAnInterface bool
-	interfaceNumber          int
 	namespace                string
+	veth0ip                  net.IP
+	veth1ip                  net.IP
+	number                   int
+	interfaceNumber          int
+	isConnectedToAnInterface bool
 }
 
 // NewCustom environment constructor
@@ -144,7 +142,6 @@ func NewEnvironmentClusterConfigured(proxyname string) *Environment {
 	if err != nil {
 		log.Fatal("Invalid subnetwork received. Can't proceed.")
 	}
-	logger.InfoLogger().Println("got subnetwork data: ", subnetwork_response)
 	subnetworks := strings.Fields(subnetwork_response)
 	ipv4_subnet := subnetworks[0]
 	ipv6_subnet := subnetworks[1]

@@ -25,8 +25,7 @@ func newIPv4Packet(nl gopacket.NetworkLayer) NetworkLayerPacket {
 
 func (packet *IPv4Packet) DecodeNetworkLayer(gop gopacket.Packet) {
 	ipv4 := gop.Layer(layers.LayerTypeIPv4)
-	if ipv4 == nil {
-		// not an IPv4 packet
+	if ipv4 == nil { // not an IPv4 packet
 		return
 	}
 	ipv4Fields := ipv4.(*layers.IPv4)
@@ -37,19 +36,19 @@ func (packet *IPv4Packet) isNetworkLayer() bool {
 	return true
 }
 
-func (packet *IPv4Packet) GetLayer() gopacket.Layer {
+func (packet *IPv4Packet) Layer() gopacket.Layer {
 	return packet.IPv4
 }
 
-func (packet *IPv4Packet) GetProtocolVersion() uint8 {
+func (packet *IPv4Packet) ProtocolVersion() uint8 {
 	return packet.IPv4.Version
 }
 
-func (packet *IPv4Packet) GetNextHeader() uint8 {
+func (packet *IPv4Packet) NextHeader() uint8 {
 	return uint8(packet.IPv4.Protocol)
 }
 
-func (packet *IPv4Packet) GetTransportLayer() TransportLayerProtocol {
+func (packet *IPv4Packet) TransportLayer() TransportLayerProtocol {
 	if packet == nil {
 		logger.ErrorLogger().Println("Got a nil packet")
 		return nil
@@ -86,18 +85,22 @@ func (packet *IPv4Packet) Defragment() error {
 	} else if ipv4Defrag == nil {
 		return nil // packet fragment, we don't have whole packet yet.
 	}
-	packet = &IPv4Packet{IPv4: ipv4Defrag}
+	packet.IPv4 = ipv4Defrag
 	return nil
 }
 
-func (ip *IPv4Packet) SerializePacket(dstIp net.IP, srcIp net.IP, prot TransportLayerProtocol) gopacket.Packet {
+func (ip *IPv4Packet) SerializePacket(
+	dstIp net.IP,
+	srcIp net.IP,
+	prot TransportLayerProtocol,
+) gopacket.Packet {
 	ip.DstIP = dstIp
 	ip.SrcIP = srcIp
 
-	if prot.GetProtocol() == "TCP" {
-		return ip.serializeTCPHeader(prot.GetTCPLayer())
+	if prot.Protocol() == "TCP" {
+		return ip.serializeTCPHeader(prot.TCPLayer())
 	} else {
-		return ip.serializeUDPHeader(prot.GetUDPLayer())
+		return ip.serializeUDPHeader(prot.UDPLayer())
 	}
 }
 
@@ -117,9 +120,15 @@ func (ip *IPv4Packet) serializeUDPHeader(udp *layers.UDP) gopacket.Packet {
 	return ip.serializeIPHeader(udp, gopacket.Payload(udp.Payload))
 }
 
-func (ip *IPv4Packet) serializeIPHeader(transportLayer gopacket.SerializableLayer, payload gopacket.SerializableLayer) gopacket.Packet {
+func (ip *IPv4Packet) serializeIPHeader(
+	transportLayer gopacket.SerializableLayer,
+	payload gopacket.SerializableLayer,
+) gopacket.Packet {
 	newBuffer := gopacket.NewSerializeBuffer()
-	err := ip.SerializeTo(newBuffer, gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true})
+	err := ip.SerializeTo(
+		newBuffer,
+		gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true},
+	)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -140,10 +149,10 @@ func (ip *IPv4Packet) serializeIPHeader(transportLayer gopacket.SerializableLaye
 	return gopacket.NewPacket(buffer.Bytes(), layers.LayerTypeIPv4, gopacket.Default)
 }
 
-func (packet *IPv4Packet) GetDestIP() net.IP {
+func (packet *IPv4Packet) DestinationIP() net.IP {
 	return packet.DstIP
 }
 
-func (packet *IPv4Packet) GetSrcIP() net.IP {
+func (packet *IPv4Packet) SourceIP() net.IP {
 	return packet.SrcIP
 }

@@ -8,17 +8,23 @@ import (
 	"strconv"
 )
 
-func attachNetwork(appname string, pid int, instance int, mappings string, iip string, sip string) (string, error) {
-
-	//attach network to the container
-	// TODO IPv6 playground implementation: _ = addrv6
+func attachNetwork(
+	appname string,
+	pid int,
+	instance int,
+	mappings string,
+	iip string,
+	sip string,
+) (string, error) {
+	// attach network to the container
+	// TODO: IPv6 playground implementation: _ = addrv6
 	addr, _, err := env.GetContainerNetDeployment().DeployNetwork(pid, appname, 0, mappings)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return "", err
 	}
 
-	//update internal table entry
+	// update internal table entry
 	AddRoute(TableEntryCache.TableEntry{
 		JobName:          appname,
 		Appname:          appname,
@@ -31,18 +37,18 @@ func attachNetwork(appname string, pid int, instance int, mappings string, iip s
 		Nodeport:         PUBLIC_PORT,
 		Nsip:             addr,
 		ServiceIP: []TableEntryCache.ServiceIP{
-			TableEntryCache.ServiceIP{
+			{
 				IpType:  TableEntryCache.InstanceNumber,
 				Address: net.ParseIP(iip),
 			},
-			TableEntryCache.ServiceIP{
+			{
 				IpType:  TableEntryCache.RoundRobin,
 				Address: net.ParseIP(sip),
 			},
 		},
 	})
 
-	return fmt.Sprintf("%s", addr.String()), nil
+	return addr.String(), nil
 }
 
 func AddRoute(entry TableEntryCache.TableEntry) {
@@ -80,12 +86,20 @@ func StringToEntry(entry []string) TableEntryCache.TableEntry {
 }
 
 func EntryToString(entry TableEntryCache.TableEntry) []string {
-	return []string{entry.Appname, fmt.Sprintf("%s", entry.Nsip.String()), fmt.Sprintf("%s", entry.ServiceIP[0].Address.String()), fmt.Sprintf("%s", entry.ServiceIP[1].Address.String()), fmt.Sprintf("%s", entry.Nodeip.String()), strconv.Itoa(entry.Nodeport), strconv.Itoa(entry.Instancenumber)}
+	return []string{
+		entry.Appname,
+		entry.Nsip.String(),
+		entry.ServiceIP[0].Address.String(),
+		entry.ServiceIP[1].Address.String(),
+		entry.Nodeip.String(),
+		strconv.Itoa(entry.Nodeport),
+		strconv.Itoa(entry.Instancenumber),
+	}
 }
 
 func entryExist(toAdd TableEntryCache.TableEntry) bool {
 	for _, entry := range Entries {
-		if entry[1] == fmt.Sprintf("%s", toAdd.Nsip.String()) {
+		if entry[1] == toAdd.Nsip.String() {
 			return true
 		}
 	}

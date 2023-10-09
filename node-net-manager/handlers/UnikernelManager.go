@@ -1,12 +1,13 @@
 package handlers
 
 import (
-	"NetManager/env"
-	"NetManager/logger"
 	"encoding/json"
 	"io"
 	"log"
 	"net/http"
+
+	"NetManager/env"
+	"NetManager/logger"
 
 	"github.com/gorilla/mux"
 )
@@ -73,7 +74,7 @@ func (m *UnikernelManager) CreateUnikernelNamesapce(writer http.ResponseWriter, 
 	requestStruct.PublicPort = m.Configuration.NodePublicPort
 	requestStruct.Env = m.Env
 	requestStruct.Writer = &writer
-	requestStruct.Finish = make(chan TaskReady, 0)
+	requestStruct.Finish = make(chan TaskReady)
 	logger.DebugLogger().Println(requestStruct)
 	NewDeployTaskQueue().NewTask(&requestStruct)
 	result := <-requestStruct.Finish

@@ -9,14 +9,14 @@ import (
 
 type NetworkLayerPacket interface {
 	isNetworkLayer() bool
-	GetLayer() gopacket.Layer
+	Layer() gopacket.Layer
 	DecodeNetworkLayer(p gopacket.Packet)
-	GetTransportLayer() TransportLayerProtocol
+	TransportLayer() TransportLayerProtocol
 	Defragment() error
-	GetSrcIP() net.IP
-	GetDestIP() net.IP
-	GetProtocolVersion() uint8
-	GetNextHeader() uint8
+	SourceIP() net.IP
+	DestinationIP() net.IP
+	ProtocolVersion() uint8
+	NextHeader() uint8
 	SerializePacket(net.IP, net.IP, TransportLayerProtocol) gopacket.Packet
 	serializeUDPHeader(*layers.UDP) gopacket.Packet
 	serializeTCPHeader(*layers.TCP) gopacket.Packet
