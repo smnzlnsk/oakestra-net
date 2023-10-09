@@ -66,7 +66,6 @@ def cloud_table_query_ip(ip):
     print('table query to the System Manager...')
     job_ip = ip.replace(".", "_")
     request_addr = ROOT_SERVICE_MANAGER_ADDR_v6 + '/api/net/service/ip/' + str(job_ip) + '/instances'
-    print(request_addr)
     try:
         return requests.get(request_addr).json()
     except requests.exceptions.RequestException as e:
@@ -77,7 +76,6 @@ def cloud_table_query_service_name(name):
     print('table query to the System Manager...')
     job_name = name.replace(".", "_")
     request_addr = ROOT_SERVICE_MANAGER_ADDR_v6 + '/api/net/service/' + str(job_name) + '/instances'
-    print(request_addr)
     try:
         resp = requests.get(request_addr)
         return resp.json()
@@ -98,5 +96,30 @@ def cloud_remove_interest(job_name):
             # TODO try again later
             logging.error(result)
             pass
-    except requests.exceptions.RequestException as e:
+    except requests.exceptions.RequestException:
         print('Calling System Manager /api/job/../instances not successful.')
+
+
+def system_manager_notify_gateway_deployment(gateway_info):
+    request_addr = ROOT_SERVICE_MANAGER_ADDR_v6 + '/api/net/gateway/deploy'
+    try:
+        result = requests.post(request_addr, json=gateway_info)
+        if result.status_code != 200:
+            return "Failed notifying root service-manager.", result.status_code
+        return result.json(), 200
+    except requests.exceptions.RequestException:
+        print('Calling System Manager /api/net/gateway/deploy not successful.')
+        return "Failed notifying root service-manager.", 500
+
+
+def system_manager_notify_gateway_update(client_id, nsip, nsipv6):
+    request_addr = ROOT_SERVICE_MANAGER_ADDR_v6 + '/api/net/gateway/{}/update'.format(client_id)
+    try:
+        result = requests.post(request_addr, json = {"namespace_ip": nsip, "namespace_ip_v6": nsipv6})
+        if result.status_code != 200:
+            return "Failed notifying root service-manager.", result.status_code
+        return 'ok', 200
+    except requests.exceptions.RequestException:
+        print("Calling System Manager /api/net/gateway/update not successful.")
+        return "Failed notifying root service-manager.", 500
+

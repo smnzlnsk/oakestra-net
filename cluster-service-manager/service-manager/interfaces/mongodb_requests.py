@@ -12,18 +12,21 @@ MONGO_ADDR_GATEWAYS = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/
 mongo_nodes = None
 mongo_jobs = None
 mongo_gateways = None
+mongo_gateway_nodes = None
+
 app = None
 
 
 def mongo_init(flask_app):
     global app
-    global mongo_nodes, mongo_jobs, mongo_gateways
+    global mongo_nodes, mongo_jobs, mongo_gateways, mongo_gateway_nodes
 
     app = flask_app
 
     mongo_nodes = PyMongo(app, uri=MONGO_ADDR_NODES)
     mongo_jobs = PyMongo(app, uri=MONGO_ADDR_JOBS)
     mongo_gateways = PyMongo(app, uri=MONGO_ADDR_GATEWAYS)
+    mongo_gateway_nodes = mongo_gateways.db['nodes']
 
     #initialize jobs db
     mongo_jobs.db.jobs.drop()
@@ -194,8 +197,14 @@ def mongo_update_job_deployed(job_name, status, ns_ip, ns_ipv6, node_id, instanc
 
 
 def mongo_find_job_by_id(id):
-    print('Find job by Id')
     return mongo_jobs.db.jobs.find_one({'_id': ObjectId(id)})
+
+
+def mongo_get_service_ips_by_jobname(name):
+    return mongo_jobs.db.jobs.find_one(
+        {'job_name': name},
+        {'service_ip_list': 1}
+    )
 
 
 # ........ Interest Operations ........ #
@@ -239,41 +248,36 @@ def mongo_remove_interest(job_name, clientid):
 # ........ Gateway Operations ......... #
 #########################################
 
-def mongo_gateway_add(gateway_id, gateway_ipv4, gateway_ipv6):
-    global mongo_gateways
-    mongo_gw = mongo_gateways.db.gateways
+def mongo_add_gateway(gateway):
+    global mongo_gateway_nodes
 
-    # do not allow duplicate gateways
-    if mongo_gw.find_one({"gateway_id": gateway_id}) is not None:
-        return None
-    
-    # gateway_ip values that are None will be stored as null in db
-    gateway = mongo_gw.find_one_and_update(
-        {"gateway_id": gateway_id},
-        {'$set':
-            {
-                "gateway_id": gateway_id,
-                "gateway_ipv4": gateway_ipv4,
-                "gateway_ipv6": gateway_ipv6
-            }
-        }, upsert=True)
-    
-    app.logger.info("MONGODB - gateway {} added".format(str(gateway.get('_id'))))
-    return str(gateway.get('_id'))
+    app.logger.info('MONGODB - adding gateway {} ...'.format(gateway['gateway_id']))
+    gateway['_id'] = ObjectId(gateway['_id'])
+    mongo_gateway_nodes.find_one_and_update(
+        {'gateway_id': gateway['gateway_id']},
+        {'$set': gateway},
+        upsert=True
+        )
+    app.logger.info('MONGODB - gateway added.')
 
 
-def mongo_find_gateway_by_id_and_update_internal_ips(gateway_id, internal_ipv4, internal_ipv6):
-    global mongo_gateways
-    mongo_gw = mongo_gateways.db.gateways
+def mongo_add_gateway_job(gw_job):
+    global mongo_jobs
+    jobs = mongo_jobs.db.jobs
 
-    app.logger.info('MONGODB - update internal IP addresses of gateway {0} ...'.format(gateway_id))
+    app.logger.info('MONGODB - adding gateway job')
+    ins_id = jobs.insert_one(gw_job)
+    app.logger.info('MONGODB - gateway job {} added.'.format(str(ins_id.inserted_id)))
 
-    mongo_gw.find_one_and_update(
-        {'_id': ObjectId(gateway_id)},
+def mongo_update_gateway_namespace(gateway_id, ipv4, ipv6):
+    global mongo_jobs
+    jobs = mongo_jobs.db.jobs
+
+    app.logger.info('MONGODB - updating gateway job')
+    jobs.find_one_and_update(
+        {'gateway_id': gateway_id},
         {'$set': {
-            'internal_ipv4': internal_ipv4,
-            'internal_ipv6': internal_ipv6
-            }},
-        upsert=True)
-
-    return 1
+            'instance_list.0.namespace_ip' : ipv4,
+            'instance_list.0.namespace_ip_v6' : ipv6
+        }})
+    app.logger.info('MONGODB - gateway job updated')

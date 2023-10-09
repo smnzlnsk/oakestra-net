@@ -7,6 +7,7 @@ from interfaces.mqtt_client import mqtt_init
 from net_logging import configure_logging
 from interfaces.mongodb_requests import mongo_init
 from operations.instances_management import instance_updates
+import operations.gateway_management as operations_gateway_management
 from operations.service_management import create_service, remove_service
 
 MY_PORT = os.environ.get('MY_PORT') or 10200
@@ -74,33 +75,32 @@ def task_update():
 # TODO: job migration
 
 
-@app.route('/api/gateway/register', methods=['POST'])
-def register_gateway():
+
+@app.route('/api/net/gateway/deploy', methods=['POST'])
+def deploy_gateway():
     """
-        Registers a new gateway component to the root network
-        receives:
-        {
-            "gateway_id": gateway_id,
-            "gateway_ipv4": gateway_ipv4,
-            "gateway_ipv6": gateway_ipv6,
-        }
+        Register new gateway and notify root service manager of gateway deployment
     """
 
-    app.logger.info('Incoming Request /api/gateway/register')
+    app.logger.info('Incoming request /api/net/gateway/deploy')
     req_json = request.json
     app.logger.debug(req_json)
 
-    gateway_id = req_json['gateway_id']
-    gateway_ipv4 = req_json['gateway_ipv4']
-    gateway_ipv6 = req_json['gateway_ipv6']
-    """
-    return operations_gateway_management.gateway_registration(
-        gateway_id = gateway_id,
-        gateway_ipv4 = gateway_ipv4,
-        gateway_ipv6 = gateway_ipv6
-    )
-    """
+    return operations_gateway_management.deploy_gateway(req_json)
 
+@app.route('/api/net/gateway/update', methods=['POST'])
+def update_gateway():
+    """
+        Update gateway about new service exposure
+    """
+    app.logger.info('Incoming request /api/net/gateway/update')
+    req_json = request.json
+    app.logger.debug(req_json)
+
+    gateway_id = req_json.get('gateway_id')
+    service_info = req_json.get('service')
+
+    return operations_gateway_management.update_gateway(gateway_id, service_info)
 
 if __name__ == '__main__':
     import eventlet

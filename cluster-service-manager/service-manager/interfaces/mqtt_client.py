@@ -1,8 +1,11 @@
+import os
 import re
+import json
 
 import traceback
-from interfaces.mongodb_requests import mongo_find_node_by_id_and_update_subnetwork, mongo_find_gateway_by_id_and_update_internal_ips
-from network.deployment import *
+from interfaces.mongodb_requests import mongo_find_node_by_id_and_update_subnetwork, mongo_update_gateway_namespace
+from network.deployment import deployment_status_report
+from interfaces.root_service_manager_requests import root_service_manager_get_subnet, system_manager_notify_gateway_update
 from network.tablequery import resolution, interests
 import paho.mqtt.client as paho_mqtt
 import logging
@@ -33,6 +36,7 @@ def handle_mqtt_message(client, userdata, message):
     re_job_tablequery_topic = re.search("^nodes/.*/net/tablequery/request", topic)
     re_job_subnet_topic = re.search("^nodes/.*/net/subnet", topic)
     re_job_interest_remove = re.search("^nodes/.*/net/interest/remove", topic)
+    re_gateway_deployment_topic = re.search("^nodes/.*/net/gateway/deployed", topic)
 
     topic_split = topic.split('/')
     client_id = topic_split[1]
@@ -53,6 +57,9 @@ def handle_mqtt_message(client, userdata, message):
     if re_job_interest_remove is not None:
         logging.debug('JOB-INTEREST-REMOVE')
         _interest_remove_handler(client_id, payload)
+    if re_gateway_deployment_topic is not None:
+        logging.debug('GATEWAY-DEPLOYMENT-UPDATE')
+        _gateway_deployment_handler(client_id, payload)
 
 
 def mqtt_init(flask_app):
@@ -132,16 +139,12 @@ def _subnet_handler(client_id, payload):
         # remove subnetwork from node
         pass
 
+def _gateway_deployment_handler(client_id, payload):
+    nsip = payload.get('namespace_ip')
+    nsipv6 = payload.get('namespace_ip_v6')
+    mongo_update_gateway_namespace(client_id, nsip, nsipv6)
+    system_manager_notify_gateway_update(client_id, nsip, nsipv6)
 
-def _gateway_ip_handler(gateway_id, payload):
-    method = payload.get('METHOD')
-    if method == 'GET':
-        # fetch new Internal Gateway IP for gateway
-        # ip_arr has structure: {'oakestra_gateway_ipv4': ipv4, 'oakestra_gateway_ipv6': ipv6}
-        ip_arr = root_service_manager_get_gateway_ip(gateway_id)
-        mongo_find_gateway_by_id_and_update_internal_ips(gateway_id=gateway_id, internal_ipv4=ip_arr[0], internal_ipv6=ip_arr[1])
-        # TODO MQTT publishing
-    
 
 def mqtt_publish_tablequery_result(client_id, result):
     topic = 'nodes/' + client_id + '/net/tablequery/result'
@@ -156,3 +159,12 @@ def mqtt_publish_subnetwork_result(client_id, result):
 def mqtt_notify_service_change(job_name, type=None):
     topic = 'jobs/' + job_name + '/updates_available'
     mqtt.publish(topic, json.dumps({"type": type}), qos=1)
+
+
+def mqtt_publish_gateway_deploy(client_id, data):
+    topic = 'nodes/' + client_id + '/net/gateway/deploy'
+    mqtt.publish(topic, json.dumps(data), qos=1)
+
+def mqtt_publish_gateway_firewall_expose(client_id, data):
+    topic = 'nodes/' + client_id + '/net/gateway/expose'
+    mqtt.publish(topic, json.dumps(data), qos=1)
