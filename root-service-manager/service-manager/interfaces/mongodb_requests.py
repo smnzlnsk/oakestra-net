@@ -12,8 +12,8 @@ MONGO_ADDR_CLUSTER = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/c
 MONGO_ADDR_GATEWAYS = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/gateways'
 MONGO_ADDR_GATEWAY_NET = 'mongodb://' + str(MONGO_URL) + ':' + str(MONGO_PORT) + '/gateway_netcache'
 
-mongo_jobs = None
-mongo_clusters = None
+mongo_jobs = None 
+mongo_clusters = None 
 mongo_net = None
 mongo_gateways = None
 mongo_gw_net = None
@@ -883,3 +883,53 @@ def mongo_find_gateway_by_id_and_update_internal_ips(gateway_id, internal_ipv4, 
             'internal_ipv6': internal_ipv6
             }},
         upsert=True)
+
+
+def mongo_add_gateway(gateway):
+    global mongo_gateways
+    mongo_gw = mongo_gateways.db.gateways
+
+    app.logger.info('MONGODB - adding gateway {} ...'.format(gateway['gateway_id']))
+    gateway['_id'] = ObjectId(gateway['_id'])
+    mongo_gw.find_one_and_update(
+        {'gateway_id': gateway['gateway_id']},
+        {'$set': gateway},
+        upsert=True
+        )
+    app.logger.info('MONGODB - gateway {} added.')
+    
+
+def mongo_add_gateway_job(gw_job):
+    global mongo_jobs
+    jobs = mongo_jobs.db.jobs
+
+    app.logger.info('MONGODB - adding gateway job')
+    ins_id = jobs.insert_one(gw_job)
+    app.logger.info('MONGODB - gateway job {} added.'.format(str(ins_id.inserted_id)))
+
+
+def mongo_update_gateway_instance_ips(gateway_id, ipv4, ipv6):
+    global mongo_gateways
+    mongo_gw = mongo_gateways.db.gateways
+
+    mongo_gw.find_one_and_update(
+        {'_id': ObjectId(gateway_id)},
+        {'$set': {
+            'instance_ip': ipv4,
+            'instance_ipv6': ipv6
+        }}
+    )
+
+def mongo_update_gateway_namespace(gateway_id, nsip, nsipv6):
+    global mongo_jobs 
+    jobs = mongo_jobs.db.jobs
+    app.logger.info('MONGODB - updating gateway job')
+
+    jobs.find_one_and_update(
+        {'gateway_id': gateway_id},
+        {'$set': {
+            'instance_list.0.namespace_ip' : nsip,
+            'instance_list.0.namespace_ip_v6' : nsipv6
+        }}
+    )
+    app.logger.info('MONGODB - gateway job updated')

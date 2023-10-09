@@ -3,7 +3,7 @@ import ipaddress
 import re 
 
 from interfaces import mongodb_requests
-from network.subnetwork_management import _addr_destringify, _addr_stringify, _addr_destringify_v6, _increase_service_address
+from network.subnetwork_management import _addr_destringify, _addr_stringify, _addr_destringify_v6, _increase_service_address, _increase_service_address_v6
 
 ipv4_lock = threading.Lock()
 ipv6_lock = threading.Lock()
@@ -15,6 +15,7 @@ ipv6_lock = threading.Lock()
 def new_gateway_internal_ipv4():
     """
     Function to return a new Oakestra internal IPv4 address for a registered gateway
+    This IP address is taken from the Instance IP pool
     @return: string, a new internal IPv4 address
     """
     with ipv4_lock:
@@ -107,12 +108,16 @@ def clear_gateway_ip_v6(addr):
 
 # function alias for readability
 _increase_gateway_address = _increase_service_address
+_increase_gateway_address_v6 = _increase_service_address_v6
 
+"""
+TODO rewrite function to count from top down
 def _increase_gateway_address_v6(addr):
-    # subnet is limited to fdfe:ffff:ffff:ffff:ffff::/64
-    # convert subnet portion of addr to int and increase by one
+    # subnet is limited to fdff:0800::/21
+    # first address is fdff:0ffff:ffff:ffff:ffff:ffff:ffff:ffff and 'grows' towards the subnet address
+    # convert subnet portion of addr to int and decrease by one since we count from the top
     addr_int = int.from_bytes(addr[8:16], byteorder='big')
-    addr_int += 1
+    addr_int -= 1
 
     # reconvert new address part to bytearray and concatenate it with the network part of addr
     # will raise RuntimeError if address space is exhausted
@@ -122,3 +127,4 @@ def _increase_gateway_address_v6(addr):
         return new_addr
     except OverflowError:
             raise RuntimeError("Exhausted Instance IP address space")
+"""

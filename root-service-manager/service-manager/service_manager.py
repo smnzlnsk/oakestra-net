@@ -1,4 +1,4 @@
-from flask import Flask, request
+from flask import Flask, request, request_started
 from flask_socketio import SocketIO
 from interfaces.mongodb_requests import mongo_init
 from network.tablequery import *
@@ -200,36 +200,22 @@ def subnet_request():
 # ......... Gateway management endpoints ...............#
 # ......................................................#
 
-@app.route('/api/gateway/deploy', methods=['POST'])
+@app.route('/api/net/gateway/deploy', methods=['POST'])
 def register_gateway():
     """
-        Registers a new gateway component to the root network
-        receives:
-        {
-            "node_ip": node_ip,
-            "cluster_id": cluster_id,
-            "microservices": microservices,
-        }
+        Registers a new gateway to be deployed and sets up IPs
     """
 
-    app.logger.info('Incoming Request /api/gateway/deploy')
+    app.logger.info('Incoming Request /api/net/gateway/deploy')
     req_json = request.json
     app.logger.debug(req_json)
 
-    node_ip = req_json['node_ip']
-    cluster_id = req_json['cluster_id']
-    microservices = req_json['microservices']
+    return operations_gateway_management.gateway_deploy(req_json)
 
-    return operations_gateway_management.deploy_gateway_function(
-        node_ip = node_ip,
-        cluster_id = cluster_id,
-        microservices = microservices
-    )
     
 # ......... Gateway network management endpoints ...............#
 # ..............................................................#
 
-# TODO implement simple auth
 @app.route('/api/gateway/<gateway_id>/ip', methods=['GET'])
 def gateway_ip_request(gateway_id = 0):
     """
@@ -237,13 +223,27 @@ def gateway_ip_request(gateway_id = 0):
     """
     if not mongodb_requests.mongo_is_gateway_registered(gateway_id):
         return {}
-    
+    ipv4 = subnetwork_management.new_instance_ip()
+    ipv6 = subnetwork_management.new_instance_ip_v6()
+    """
     ipv4 = network_gateway_management.new_gateway_internal_ipv4()
     ipv6 = network_gateway_management.new_gateway_internal_ipv6()
+    """
     return {'oakestra_gateway_ipv4': ipv4, 'oakestra_gateway_ipv6': ipv6}
 
+@app.route('/api/net/gateway/<gateway_id>/update', methods=['POST'])
+def update_gateway(gateway_id):
+    """
+    Updates the gateway namespace IPs 
+    """
+    app.logger.info('Incoming request /api/net/gateway/update')
+    req_json = request.json
+    app.logger.debug(req_json)
 
+    nsip = req_json.get('namespace_ip')
+    nsipv6 = req_json.get('namespace_ip_v6')
 
+    return operations_gateway_management.update_gateway(gateway_id, nsip, nsipv6)
 
 if __name__ == '__main__':
     import eventlet
