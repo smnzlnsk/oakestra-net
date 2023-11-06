@@ -102,6 +102,7 @@ func (proxy *GoProxyTunnel) outgoingMessage() {
 			// fetch remote address
 			dstHost, dstPort := proxy.locateRemoteAddress(ip.DestinationIP())
 
+			logger.InfoLogger().Printf("\nSending packet: \t\t\t %s ---> %s\n", ip.SourceIP().String(), ip.DestinationIP().String())
 			// packetForwarding to tunnel interface
 			proxy.forward(dstHost, dstPort, newPacket, 0)
 		}
@@ -124,6 +125,8 @@ func (proxy *GoProxyTunnel) ingoingMessage() {
 			logger.DebugLogger().
 				Printf("Ingoing packet:\t\t\t %s <--- %s\n", ip.DestinationIP().String(), ip.SourceIP().String())
 
+			logger.InfoLogger().
+				Printf("\nReceiving packet:\t\t\t %s <--- %s\n", ip.DestinationIP().String(), ip.SourceIP().String())
 			// continue only if the packet is udp or tcp, otherwise just drop it
 			if prot == nil {
 				continue
@@ -454,7 +457,7 @@ func (proxy *GoProxyTunnel) ifaceread(
 		} else {
 			res := make([]byte, n)
 			copy(res, buffer[:n])
-			logger.DebugLogger().Printf("Outgoing packet ready for decode action \n")
+			logger.DebugLogger().Println("Outgoing packet ready for decode action.")
 			out <- outgoingMessage{
 				content: &res,
 			}
@@ -539,7 +542,7 @@ func decodePacket(msg []byte) (iputils.NetworkLayerPacket, iputils.TransportLaye
 
 	packet := iputils.NewGoPacket(msg, ipType)
 	if packet == nil {
-		logger.DebugLogger().Println("Error decoding Network Layer of Packet")
+		logger.ErrorLogger().Println("Error decoding Network Layer of Packet")
 	}
 
 	ipLayer := packet.NetworkLayer()
