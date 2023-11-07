@@ -29,8 +29,10 @@ var (
 func IptableFlushAll() {
 	_ = iptable.DeleteChain("nat", chain)
 	_ = iptable.Delete("nat", "PREROUTING", "-j", chain)
+	_ = iptable.Delete("nat", "POSTROUTING", "-j", chain)
 	_ = ip6table.DeleteChain("nat", chain)
 	_ = ip6table.Delete("nat", "PREROUTING", "-j", chain)
+	_ = ip6table.Delete("nat", "POSTROUTING", "-j", chain)
 }
 
 func DisableReversePathFiltering(bridgeName string) {
