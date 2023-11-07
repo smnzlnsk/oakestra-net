@@ -49,7 +49,6 @@ func (gw *GatewayConfiguration) configureProxy() error {
 		}},
 	}
 	logger.InfoLogger().Println("Adding Entry:", gatewayEntry)
-	logger.InfoLogger().Println(proxy.Proxy())
 	proxy.Proxy().Environment.AddTableQueryEntry(*gatewayEntry)
 	entry, ok := proxy.Proxy().Environment.GetTableEntryByInstanceIP(gw.gatewayIPv4)
 	if !ok {
@@ -66,6 +65,7 @@ func (gw *GatewayConfiguration) configureProxy() error {
 }
 
 func (gw *GatewayConfiguration) EnableServiceExposure(serviceID string, serviceIP net.IP, servicePort int, exposedPort int) error {
+	logger.InfoLogger().Printf("Enabling: %s with %s:%d - opening %d", serviceID, serviceIP.String(), servicePort, exposedPort)
 	// rules are set up by the order they are hit
 	if serviceIP.To4() != nil {
 		// PREROUTING
