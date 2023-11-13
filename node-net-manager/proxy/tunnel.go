@@ -102,7 +102,7 @@ func (proxy *GoProxyTunnel) outgoingMessage() {
 			// fetch remote address
 			dstHost, dstPort := proxy.locateRemoteAddress(ip.DestinationIP())
 
-			logger.InfoLogger().Printf("\nSending packet: \t\t\t %s ---> %s\n", ip.SourceIP().String(), ip.DestinationIP().String())
+			logger.InfoLogger().Printf("Sending packet: \t\t\t %s ---> %s\n", ip.SourceIP().String(), ip.DestinationIP().String())
 			// packetForwarding to tunnel interface
 			proxy.forward(dstHost, dstPort, newPacket, 0)
 		}
@@ -126,7 +126,7 @@ func (proxy *GoProxyTunnel) ingoingMessage() {
 				Printf("Ingoing packet:\t\t\t %s <--- %s\n", ip.DestinationIP().String(), ip.SourceIP().String())
 
 			logger.InfoLogger().
-				Printf("\nReceiving packet:\t\t\t %s <--- %s\n", ip.DestinationIP().String(), ip.SourceIP().String())
+				Printf("Receiving packet:\t\t\t %s <--- %s\n", ip.DestinationIP().String(), ip.SourceIP().String())
 			// continue only if the packet is udp or tcp, otherwise just drop it
 			if prot == nil {
 				continue
@@ -172,24 +172,21 @@ func (proxy *GoProxyTunnel) outgoingProxy(
 			Equal(ip.DestinationIP().Mask(proxy.ProxyIpSubnetwork.Mask))
 	}
 	if ip.ProtocolVersion() == 6 {
-		logger.DebugLogger().Println("DestIP len: ", len(ip.DestinationIP()))
-		logger.DebugLogger().Println("ProxyIP len: ", len(proxy.ProxyIPv6Subnetwork.IP))
 		semanticRoutingSubnetwork = proxy.ProxyIPv6Subnetwork.IP.Mask(proxy.ProxyIPv6Subnetwork.Mask).
 			Equal(ip.DestinationIP().Mask(proxy.ProxyIPv6Subnetwork.Mask))
 	}
 
-	logger.DebugLogger().Println("semanticRoutingSubnetwork: ", semanticRoutingSubnetwork)
 	if semanticRoutingSubnetwork {
 		// Check if the ServiceIP is known
 		tableEntryList := proxy.Environment.GetTableEntryByServiceIP(dstIP)
-		logger.DebugLogger().Println("tableEntryList: ", tableEntryList)
+		logger.InfoLogger().Println("Table Entry List of Destination: ", tableEntryList)
 		if len(tableEntryList) < 1 {
 			return nil
 		}
 
 		// Find the instanceIP of the current service
 		instanceIP, err := proxy.convertToInstanceIp(ip)
-		logger.DebugLogger().Println("proxy Converted to Instance IP: ", instanceIP)
+		logger.InfoLogger().Printf("Source Namespace IP %s converted to Instance IP: %s\n", ip.SourceIP().String(), instanceIP)
 		if err != nil {
 			return nil
 		}
@@ -223,7 +220,7 @@ func (proxy *GoProxyTunnel) outgoingProxy(
 				srcport:       srcport,
 				dstport:       dstport,
 			}
-			logger.DebugLogger().Println("Adding ConversionEntry: ", entry)
+			logger.DebugLogger().Println("Adding Conversion Entry: ", entry)
 			proxy.proxycache.Add(entry)
 		}
 		return ip.SerializePacket(entry.dstip, entry.srcInstanceIp, prot)
@@ -346,7 +343,7 @@ func (proxy *GoProxyTunnel) locateRemoteAddress(nsIP net.IP) (net.IP, int) {
 	tableElement, found := proxy.Environment.GetTableEntryByNsIP(nsIP)
 	if found {
 		logger.DebugLogger().
-			Println("Remote NS IP", nsIP.String(), " translated to ", tableElement.Nodeip.String(), tableElement.Nodeport)
+			Printf("Remote NamespaceIP %s translated to %s:%d\n", nsIP.String(), tableElement.Nodeip.String(), tableElement.Nodeport)
 		return tableElement.Nodeip, tableElement.Nodeport
 	}
 

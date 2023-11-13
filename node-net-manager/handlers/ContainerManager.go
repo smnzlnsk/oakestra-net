@@ -90,7 +90,7 @@ func (m *ContainerManager) containerDeploy(writer http.ResponseWriter, request *
 		return
 	}
 
-	//if deploy succesfull -> answer the caller
+	// if deploy succesfull -> answer the caller
 	response := DeployResponse{
 		ServiceName: deployTask.ServiceName,
 		NsAddress:   result.IP.String(),
