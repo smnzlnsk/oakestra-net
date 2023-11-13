@@ -264,7 +264,7 @@ func (proxy *GoProxyTunnel) ingoingProxy(
 	// Check proxy proxycache for REVERSE entry conversion
 	// DstIP -> srcip, DstPort->srcport, srcport -> dstport
 	entry, exist := proxy.proxycache.RetrieveByInstanceIp(ip.DestinationIP(), dstport, srcport)
-	logger.DebugLogger().Println("ProxyCache: RetrieveByServiceIP ", entry, exist)
+	logger.InfoLogger().Printf("Proxy Cache: Retranslation Destination InstanceIP %s to NamespaceIP %s\n", ip.DestinationIP().String(), entry.dstip)
 
 	if !exist {
 		// No proxy proxycache entry, no translation needed
@@ -386,7 +386,7 @@ func (proxy *GoProxyTunnel) forward(
 	proxy.udpwrite.Unlock()
 	// TODO: flush connection buffer by time to time
 	if !exist {
-		logger.DebugLogger().Println("Establishing a new connection to node ", hoststring)
+		logger.InfoLogger().Println("Establishing a new connection to node ", hoststring)
 		connection, err := createUDPChannel(hoststring)
 		if nil != err {
 			return
@@ -398,7 +398,7 @@ func (proxy *GoProxyTunnel) forward(
 		con = connection
 	}
 
-	logger.DebugLogger().Println("Sending to already known connection ", hoststring)
+	logger.InfoLogger().Println("Sending to already known connection ", hoststring)
 	// send via UDP channel
 	proxy.udpwrite.Lock()
 	_, _, err := (*con).WriteMsgUDP(packetBytes, nil, nil)
