@@ -264,7 +264,7 @@ func (proxy *GoProxyTunnel) ingoingProxy(
 	// Check proxy proxycache for REVERSE entry conversion
 	// DstIP -> srcip, DstPort->srcport, srcport -> dstport
 	entry, exist := proxy.proxycache.RetrieveByInstanceIp(ip.DestinationIP(), dstport, srcport)
-	logger.InfoLogger().Printf("Proxy Cache: Retranslation Destination InstanceIP %s to NamespaceIP %s\n", ip.DestinationIP().String(), entry.dstip)
+	logger.InfoLogger().Printf("Proxy Cache: Retranslation Destination InstanceIP %s to NamespaceIP %s\n", ip.SourceIP().String(), entry.dstip)
 
 	if !exist {
 		// No proxy proxycache entry, no translation needed
@@ -342,7 +342,7 @@ func (proxy *GoProxyTunnel) locateRemoteAddress(nsIP net.IP) (net.IP, int) {
 	// if no local cache entry convert namespace IP to host IP via table query
 	tableElement, found := proxy.Environment.GetTableEntryByNsIP(nsIP)
 	if found {
-		logger.DebugLogger().
+		logger.InfoLogger().
 			Printf("Remote NamespaceIP %s translated to %s:%d\n", nsIP.String(), tableElement.Nodeip.String(), tableElement.Nodeport)
 		return tableElement.Nodeip, tableElement.Nodeport
 	}
